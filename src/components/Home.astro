@@ -1,0 +1,256 @@
+---
+import { labelFor, MIN_GROUP, WINDOWS } from '../lib/reports';
+import { LABS, MARK, isoDate, titleFor, type Change, type Lang } from '../lib/site';
+import type { HomeData } from '../lib/home';
+
+interface Props {
+  lang: Lang;
+  data: HomeData;
+  changes: Change[];
+}
+const { lang, data, changes } = Astro.props;
+const prefix = lang === 'zh' ? '/zh' : '';
+const n = (x: number) => x.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US');
+
+const text = {
+  en: {
+    h1: 'How fast people hit AI usage limits',
+    lead: `From ${n(data.reports)} reports by ${n(data.people)} people in the last ${data.days} days. Self-reported, not official numbers.`,
+    sample: 'Sample data',
+    soonerTitle: 'Sooner than usual',
+    soonerLead: (now: number, then: number) =>
+      `${now}% of people who hit a limit last week said it came sooner than usual. Four weeks earlier it was ${then}%.`,
+    timeTitle: 'Time to hit the limit',
+    timeLead: 'The bar is the whole window. The solid part is the median time before hitting the limit; the shaded part covers the middle half of reports. The change is against the 30 days before.',
+    of: (w: string) => `of ${w}`,
+    reports: (r: number) => `${r} reports`,
+    waiting: (r: number) => `${r} of ${MIN_GROUP} reports, numbers appear at ${MIN_GROUP}`,
+    cols: ['Plan', 'Median time to the limit', '', 'Change', 'Reports'],
+    modelsTitle: 'Which models use it up',
+    modelsLead: 'Share of tokens by model in the windows that hit a limit. From the command-line tool, so Claude Code and Codex only.',
+    changesTitle: 'Latest plan changes',
+    allChanges: 'All changes',
+    share: 'Share when you hit a limit',
+    data: 'Download all reports (CSV)',
+    windows: { '5h': '5 hours', daily: 'a day', weekly: 'a week', monthly: 'a month' } as Record<string, string>,
+    limit: { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' } as Record<string, string>,
+  },
+  zh: {
+    h1: '大家多快会触发 AI 用量上限',
+    lead: `根据最近 ${data.days} 天 ${n(data.people)} 人提交的 ${n(data.reports)} 份报告。数据由用户自行报告，不是官方数字。`,
+    sample: '示例数据',
+    soonerTitle: '比平时更早',
+    soonerLead: (now: number, then: number) =>
+      `上周触发上限的人中，${now}% 说比平时更早。四周前这个比例是 ${then}%。`,
+    timeTitle: '触发上限用时',
+    timeLead: '整条横条代表一个额度周期。实心部分是触发上限用时的中位数，浅色部分覆盖中间一半的报告。变化与之前 30 天相比。',
+    of: (w: string) => `/ ${w}`,
+    reports: (r: number) => `${r} 份报告`,
+    waiting: (r: number) => `${r} / ${MIN_GROUP} 份报告，满 ${MIN_GROUP} 份后显示`,
+    cols: ['方案', '触发上限用时（中位数）', '', '变化', '报告数'],
+    modelsTitle: '哪些模型用得最多',
+    modelsLead: '触发上限的周期内各模型的 token 占比。来自命令行工具，只包括 Claude Code 和 Codex。',
+    changesTitle: '最近的方案变化',
+    allChanges: '全部变化',
+    share: '触发上限时分享一下',
+    data: '下载全部报告（CSV）',
+    windows: { '5h': '5 小时', daily: '1 天', weekly: '1 周', monthly: '1 个月' } as Record<string, string>,
+    limit: { '5h': '5 小时', daily: '每日', weekly: '每周', monthly: '每月' } as Record<string, string>,
+  },
+}[lang];
+
+function duration(m: number) {
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return [d && `${d}d`, h && `${h}h`, mm && `${mm}m`].filter(Boolean).join(' ') || '0m';
+}
+const pct = (m: number, window: string) => Math.min(100, (100 * m) / WINDOWS[window as keyof typeof WINDOWS]);
+const labName = (lab: string) => (LABS as Record<string, { en: string; zh: string }>)[lab]?.[lang] ?? lab;
+const labs = [...new Set(data.plans.map((p) => p.lab))];
+
+const weeks = data.sooner;
+const now = weeks.at(-1);
+const then = weeks.at(-5);
+const maxPct = Math.max(100, ...weeks.map((w) => w.pct));
+
+const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
+  .map((lab) => changes.find((c) => c.data.lab === lab))
+  .filter((c): c is Change => !!c)
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+---
+<section class="intro">
+  <h1>{text.h1}</h1>
+  <p class="lead">{text.lead}{data.sample && <span class="tag">{text.sample}</span>}</p>
+</section>
+
+{now && then && (
+  <section>
+    <h2>{text.soonerTitle}</h2>
+    <p class="big">{text.soonerLead(now.pct, then.pct)}</p>
+    <div class="weeks" role="img" aria-label={weeks.map((w) => `${w.week}: ${w.pct}%`).join(', ')}>
+      {weeks.map((w, i) => (
+        <div class="week">
+          <span class="pct">{w.pct}%</span>
+          <span class="col"><span style={`height:${(100 * w.pct) / maxPct}%`} class={i === weeks.length - 1 ? 'now' : ''}></span></span>
+          <span class="date">{w.week.slice(5)}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
+<section>
+  <h2>{text.timeTitle}</h2>
+  <p class="meta">{text.timeLead}</p>
+  <div class="cols" aria-hidden="true">{text.cols.map((c) => <span>{c}</span>)}</div>
+  {labs.map((lab) => (
+    <div class="lab">
+      <h3>{labName(lab)}</h3>
+      <ul class="plans">
+        {data.plans.filter((p) => p.lab === lab).map((p) => {
+          const delta = p.median !== null && p.prev !== null ? p.median - p.prev : null;
+          return (
+            <li>
+              <span class="name">{labelFor(p.lab, 'plans', p.plan)} <span class="muted">{text.limit[p.window]}</span></span>
+              {p.median === null ? (
+                <span class="waiting">{text.waiting(p.reports)}</span>
+              ) : (
+                <>
+                  <span class="track" aria-hidden="true">
+                    <span class="band" style={`left:${pct(p.p25!, p.window)}%;width:${pct(p.p75!, p.window) - pct(p.p25!, p.window)}%`}></span>
+                    <span class="fill" style={`width:${pct(p.median, p.window)}%`}></span>
+                  </span>
+                  <span class="value">{duration(p.median)} <span class="muted">{text.of(text.windows[p.window])}</span></span>
+                  <span class={`delta ${delta === null || Math.abs(delta) < 5 ? '' : delta < 0 ? 'tighter' : 'looser'}`}>
+                    {delta === null || Math.abs(delta) < 5 ? MARK.neutral : `${delta < 0 ? MARK.tighter : MARK.looser}${duration(Math.abs(delta))}`}
+                  </span>
+                  <span class="count muted">{text.reports(p.reports)}</span>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  ))}
+</section>
+
+{data.models.length > 0 && (
+  <section>
+    <h2>{text.modelsTitle}</h2>
+    <p class="meta">{text.modelsLead}</p>
+    <ul class="models">
+      {data.models.map((m) => (
+        <li>
+          <span class="name">{labName(m.lab)}</span>
+          <span class="stack" aria-hidden="true">
+            {m.shares.map(([, share], i) => <span class={`s${Math.min(i, 2)}`} style={`width:${share}%`}></span>)}
+          </span>
+          <span class="legend">
+            {m.shares.map(([model, share], i) => <span><i class={`s${Math.min(i, 2)}`}></i>{model} {share}%</span>)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<section>
+  <h2>{text.changesTitle}</h2>
+  <ul class="rows">
+    {latest.map((c) => (
+      <li>
+        <a class="row" href={`${prefix}/changes#${c.id}`}>
+          <span class="muted">{labName(c.data.lab)}</span>
+          <time class="muted" datetime={isoDate(c.data.date)}>{isoDate(c.data.date)}</time>
+          <span class={`mark ${c.data.direction}`}>{MARK[c.data.direction]}</span>
+          <span class="title">{titleFor(c, lang)}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+  <p class="more"><a class="u" href={`${prefix}/changes`}>{text.allChanges} →</a></p>
+</section>
+
+<section class="notes">
+  <p><a class="u" href={`${prefix}/share`}>{text.share}</a> · <a class="u" href="/data/reports.csv">{text.data}</a></p>
+</section>
+
+<style>
+  .intro { padding: 48px 0 8px; }
+  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 16px; max-width: 30em; }
+  .lead { margin: 0; max-width: 62ch; color: var(--muted); }
+  .tag { margin-left: 12px; padding: 1px 6px; border: 1px solid var(--line); font-size: var(--s-sm); color: var(--fg); white-space: nowrap; }
+  h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: var(--s-md); font-weight: 500; margin: 0 0 4px; }
+  section + section { margin-top: 48px; }
+  .meta { font-size: var(--s-sm); color: var(--muted); margin: 12px 0 16px; max-width: 72ch; }
+  .muted { color: var(--muted); }
+  .u { text-decoration: underline; text-underline-offset: 3px; }
+
+  .big { font-size: var(--s-lg); line-height: 1.5; margin: 16px 0 20px; max-width: 34em; }
+  .weeks { display: grid; grid-template-columns: repeat(8, minmax(0, 56px)); gap: 8px; }
+  .week { display: grid; grid-template-rows: auto 48px auto; gap: 6px; font-size: var(--s-sm); text-align: center; }
+  .week .pct { color: var(--muted); }
+  .col { position: relative; display: block; width: 8px; margin: 0 auto; background: var(--hover); }
+  .col span { position: absolute; left: 0; right: 0; bottom: 0; background: var(--muted); }
+  .col span.now { background: var(--fg); }
+  .week .date { color: var(--muted); }
+
+  .lab + .lab { margin-top: 24px; }
+  .cols { display: grid; grid-template-columns: 20ch minmax(0, 1fr) 17ch 8ch 12ch; gap: 16px; font-size: var(--s-sm); color: var(--muted); margin-bottom: 12px; }
+  .cols span:nth-child(2) { grid-column: 2 / 4; }
+  .cols span:nth-child(3) { display: none; }
+  .cols span:nth-child(n+4) { text-align: right; }
+  .plans, .models, .rows { list-style: none; margin: 0; padding: 0; }
+  .plans li {
+    display: grid; grid-template-columns: 20ch minmax(0, 1fr) 17ch 8ch 12ch; gap: 16px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+  }
+  .track { position: relative; height: 8px; background: var(--hover); }
+  .band { position: absolute; top: 0; bottom: 0; background: var(--line); }
+  .fill { position: absolute; top: 2px; bottom: 2px; left: 0; background: var(--fg); }
+  .delta { text-align: right; color: var(--muted); }
+  .delta.tighter { color: var(--minus); }
+  .delta.looser { color: var(--plus); }
+  .count { text-align: right; font-size: var(--s-sm); }
+  .waiting { grid-column: 2 / -1; color: var(--muted); font-size: var(--s-sm); }
+
+  .models li { display: grid; grid-template-columns: 20ch minmax(0, 1fr); gap: 6px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .stack { display: flex; height: 8px; align-self: center; }
+  .stack span { height: 100%; }
+  .s0 { background: var(--fg); }
+  .s1 { background: var(--muted); }
+  .s2 { background: var(--line); }
+  .legend { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: var(--s-sm); color: var(--muted); }
+  .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+
+  .row { display: grid; grid-template-columns: 11ch 11ch 2ch minmax(0, 1fr); gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .row:hover { background: var(--hover); text-decoration: none; }
+  .mark { font-weight: 500; text-align: center; }
+  .mark.tighter { color: var(--minus); }
+  .mark.looser { color: var(--plus); }
+  .mark.neutral { color: var(--muted); }
+  .more { margin: 12px 0 0; font-size: var(--s-sm); }
+  .notes p { font-size: var(--s-sm); color: var(--muted); margin: 0; }
+
+  @media (max-width: 640px) {
+    .intro { padding: 24px 0 0; }
+    .cols { display: none; }
+    .weeks { gap: 6px; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .week { font-size: 11px; }
+    .plans li { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 12px; }
+    .plans .name { grid-column: 1 / -1; }
+    .plans .track { grid-column: 1 / -1; grid-row: 3; }
+    .plans .value { grid-column: 1; grid-row: 2; }
+    .plans .delta { grid-column: 2; grid-row: 2; }
+    .plans .count { grid-column: 3; grid-row: 2; }
+    .waiting { grid-column: 1 / -1; }
+    .models li { grid-template-columns: 1fr; }
+    .legend { grid-column: 1; }
+    .row { grid-template-columns: 2ch minmax(0, 1fr); gap: 2px 12px; }
+    .row .muted { grid-column: 2; font-size: var(--s-sm); }
+    .row time { display: none; }
+    .row .mark { grid-row: 2; grid-column: 1; }
+    .row .title { grid-column: 2; }
+  }
+</style>

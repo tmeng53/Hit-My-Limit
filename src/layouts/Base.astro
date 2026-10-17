@@ -14,8 +14,8 @@ const enHref = path;
 const zhHref = path === '/' ? '/zh/' : `/zh${path}`;
 const prefix = lang === 'zh' ? '/zh' : '';
 const nav = [
-  { href: `${prefix}/`, label: s.navLog, path: '/' },
-  { href: `${prefix}/limits`, label: s.navLimits, path: '/limits' },
+  { href: `${prefix}/`, label: s.navLimits, path: '/' },
+  { href: `${prefix}/changes`, label: s.navLog, path: '/changes' },
   { href: `${prefix}/share`, label: s.navShare, path: '/share' },
 ];
 const pageTitle = title ? `${title} · Hit My Limit` : `Hit My Limit · ${s.tagline}`;
