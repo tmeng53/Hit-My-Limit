@@ -14,6 +14,8 @@ export async function feed(site: URL, lang: Lang, lab?: keyof typeof LABS) {
       description: `${summaryFor(c, lang)} (${t[lang].source}: ${c.data.source_name})`,
       pubDate: c.data.date,
       link: `${base}#${c.id}`,
+      // One category per item. Readers such as the Mac app treat "reset" as a free reset.
+      categories: [c.data.kind],
     })),
   });
 }

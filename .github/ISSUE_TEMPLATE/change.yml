@@ -44,12 +44,14 @@ body:
       options:
         - Usage limit changed
         - How usage is displayed changed
+        - Free limit reset
     validations:
       required: true
   - type: dropdown
     id: direction
     attributes:
       label: Did limits get tighter or looser?
+      description: For a free reset, pick Looser.
       options:
         - Tighter
         - Looser
@@ -75,7 +77,9 @@ body:
     id: source
     attributes:
       label: Source link
-      description: An official post, release notes, press article, or a public report (GitHub issue, forum thread).
+      description: |
+        An official post, release notes, press article, or a public report (GitHub issue, forum thread).
+        A free reset linked to the lab's own site or official X account goes live right away. Everything else waits for review.
       placeholder: https://
     validations:
       required: true

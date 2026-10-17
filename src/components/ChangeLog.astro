@@ -46,6 +46,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
     {Object.entries(legend).map(([k, label]) => (
       <span><span class={`mark ${k}`}>{MARK[k as keyof typeof MARK]}</span> {label}</span>
     ))}
+    <span><span class="tag">{s.resetTag}</span> {s.reset}</span>
   </p>
 
   <ol class="rows log">
@@ -56,7 +57,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
             <span class="lab">{LABS[c.data.lab][lang]}</span>
             <time datetime={isoDate(c.data.date)}>{isoDate(c.data.date)}</time>
             <span class={`mark ${c.data.direction}`}>{MARK[c.data.direction]}</span>
-            <span class="title">{titleFor(c, lang)}</span>
+            <span class="title">{c.data.kind === 'reset' && <span class="tag" title={s.resetHint}>{s.resetTag}</span>}{titleFor(c, lang)}</span>
           </summary>
           <div class="body">
             <p>{summaryFor(c, lang)}</p>
@@ -146,6 +147,9 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .mark.looser { color: var(--plus); }
   .mark.neutral { color: var(--muted); }
   .ago { font-size: var(--s-sm); }
+  .tag { color: var(--plus); font-size: var(--s-sm); margin-right: 1ch; }
+  .tag::before { content: '['; }
+  .tag::after { content: ']'; }
   details[open] .title { font-weight: 500; }
 
   .body { padding: 0 0 20px calc(21ch + 32px + 2ch + 16px); max-width: calc(21ch + 64px + 62ch); }
