@@ -39,6 +39,13 @@ export const t = {
     rss: 'RSS',
     other: '中文',
     otherHref: '/zh/',
+    displayOnly: 'display only',
+    latest: 'Most recent change per lab',
+    log: 'All changes',
+    plans: 'Plans',
+    daysAgo: 'days ago',
+    today: 'today',
+    alertsLead: 'Email me when a limit changes',
     codeLicense: 'Code: MIT',
     dataLicense: 'Data: CC BY 4.0',
   },
@@ -66,10 +73,24 @@ export const t = {
     rss: 'RSS',
     other: 'English',
     otherHref: '/',
+    displayOnly: '仅显示方式',
+    latest: '各家最近一次变化',
+    log: '全部变化',
+    plans: '方案',
+    daysAgo: '天前',
+    today: '今天',
+    alertsLead: '额度有变化时发邮件提醒我',
     codeLicense: '代码：MIT',
     dataLicense: '数据：CC BY 4.0',
   },
 } as const;
+
+// Diff-style markers: minus means users got less, plus means more.
+export const MARK = { tighter: '−', looser: '+', mixed: '±', neutral: '·' } as const;
+
+export function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
 
 export async function getChanges(lab?: keyof typeof LABS): Promise<Change[]> {
   const all = await getCollection('changes', (c) => !lab || c.data.lab === lab);
