@@ -120,3 +120,29 @@ test('Codex: finds a weekly hit from rate-limit snapshots and sums token increas
   const r = buildReport(h, { plan: 'plus', work: 'coding', account: 'own', clientId: 'a'.repeat(32) });
   assert.equal(r.minutes_to_limit, 3 * 1440 + 9 * 60);
 });
+
+test('Codex: finds a hit recorded as a refused turn after the last snapshot', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const resetsAt = Date.parse('2026-10-04T05:00:00Z') / 1000;
+  const snap = (time, primary) => ({
+    timestamp: T(time), type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 0, output_tokens: 50 } },
+      rate_limits: primary
+        ? { plan_type: 'plus', primary: { used_percent: 98.0, window_minutes: 300, resets_at: resetsAt }, secondary: { used_percent: 15.0, window_minutes: 10080, resets_at: resetsAt + 6 * 86400 } }
+        : { plan_type: null, primary: null, secondary: null },
+    },
+  });
+  writeFileSync(join(dir, 'rollout-2.jsonl'), lines([
+    snap('2026-10-04T02:59:49Z', true),
+    snap('2026-10-04T02:59:50Z', false),
+    { timestamp: T('2026-10-04T02:59:50Z'), type: 'event_msg', payload: { type: 'task_complete', error: { message: "You've hit your usage limit. Upgrade to Pro" } } },
+    { timestamp: T('2026-10-04T03:00:01Z'), type: 'event_msg', payload: { type: 'task_complete', error: { message: "You've hit your usage limit. Upgrade to Pro" } } },
+  ]));
+  const hits = codexHits(await readCodex([dir], since));
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].window, '5h');
+  assert.equal(hits[0].plan, 'plus');
+  assert.equal(new Date(hits[0].start).toISOString(), '2026-10-04T00:00:00.000Z');
+});

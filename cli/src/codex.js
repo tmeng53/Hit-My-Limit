@@ -63,12 +63,14 @@ export async function readCodex(dirs, since) {
             }
           }
           if (p.rate_limits) {
-            last = snapshot(p.rate_limits, time);
+            // Once a request is refused, Codex logs snapshots with empty windows; keep the last real one.
+            const snap = snapshot(p.rate_limits, time);
+            if (snap.length) last = snap;
             plan = PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan;
-            for (const w of last) if (w.used >= 100) hits.push({ time, ...w, plan, version });
+            for (const w of snap) if (w.used >= 100) hits.push({ time, ...w, plan, version });
           }
-        } else if (p.type === 'error' && /usage limit/i.test(String(p.message ?? ''))) {
-          // The error doesn't say which limit; use the fullest window from the latest snapshot.
+        } else if (/usage limit/i.test(String(p.error?.message ?? p.message ?? '')) && (p.type === 'error' || p.type === 'task_complete')) {
+          // "You've hit your usage limit" doesn't say which limit; use the fullest window from the last snapshot.
           const w = [...last].sort((a, b) => b.used - a.used)[0];
           if (w && w.used >= 90) hits.push({ time, ...w, plan, version });
         }
