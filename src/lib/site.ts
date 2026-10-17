@@ -41,6 +41,15 @@ export const t = {
     otherHref: '/zh/',
     codeLicense: 'Code: MIT',
     dataLicense: 'Data: CC BY 4.0',
+    changes: 'changes',
+    last: 'last',
+    emailLabel: 'Get an email when a limit changes',
+    newSince: (n: number) => `${n} new since your last visit`,
+    plans: 'Applies to',
+    expand: 'Show all details',
+    collapse: 'Hide details',
+    displayOnly: 'display only',
+    link: 'Link',
   },
   zh: {
     tagline: 'AI 用量额度变化记录',
@@ -68,6 +77,15 @@ export const t = {
     otherHref: '/',
     codeLicense: '代码：MIT',
     dataLicense: '数据：CC BY 4.0',
+    changes: '条',
+    last: '最近',
+    emailLabel: '额度有变化时发邮件给我',
+    newSince: (n: number) => `上次访问后新增 ${n} 条`,
+    plans: '适用于',
+    expand: '展开全部',
+    collapse: '收起全部',
+    displayOnly: '仅显示方式',
+    link: '链接',
   },
 } as const;
 
@@ -88,6 +106,14 @@ export function formatDate(d: Date, lang: Lang) {
   return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', {
     year: 'numeric',
     month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+export function formatDay(d: Date, lang: Lang) {
+  return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', {
+    month: lang === 'zh' ? 'numeric' : 'short',
     day: 'numeric',
     timeZone: 'UTC',
   });
