@@ -16,7 +16,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/cli"
 cp "$BIN" "$APP/Contents/MacOS/HitMyLimit"
 sed "s/VERSION/$VERSION/g" Info.plist > "$APP/Contents/Info.plist"
 cp -R ../cli/bin ../cli/src ../cli/package.json "$APP/Contents/Resources/cli/"
-cp Resources/MenuBarIconTemplate.png Resources/MenuBarIconTemplate@2x.png "$APP/Contents/Resources/"
+cp Resources/MenuBarIcon-*Template*.png "$APP/Contents/Resources/"
 
 # App icon: every size macOS asks for, made from the 1024px master.
 ICONSET="dist/AppIcon.iconset"

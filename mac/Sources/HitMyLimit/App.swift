@@ -18,7 +18,7 @@ struct HitMyLimitApp: App {
         } label: {
             // A gauge, plus the fullest limit when the logs show one.
             HStack(spacing: 3) {
-                MenuBarIcon()
+                MenuBarIcon(fraction: model.usedFraction)
                 if !model.headline.isEmpty { Text(model.headline).monospacedDigit() }
             }
         }
@@ -36,16 +36,19 @@ struct HitMyLimitApp: App {
     }
 }
 
-// The grass-on-a-full-bar logo as a template image, so macOS tints it like the other menu bar icons.
+// Four usage blocks running into a wall: the blocks fill as the fullest limit fills, and grass grows on them once
+// it's hit. Template images, so macOS tints them like the other menu bar icons.
 struct MenuBarIcon: View {
-    private static let image: NSImage? = {
-        guard let i = NSImage(named: "MenuBarIconTemplate") else { return nil }
+    let fraction: Double?
+
+    private static let images: [NSImage?] = (0...4).map { k in
+        guard let i = NSImage(named: "MenuBarIcon-\(k)Template") else { return nil }
         i.isTemplate = true
-        i.size = NSSize(width: 18, height: 18)
         return i
-    }()
+    }
 
     var body: some View {
-        if let i = Self.image { Image(nsImage: i) } else { Image(systemName: "gauge.with.dots.needle.67percent") }
+        let k = max(0, min(4, Int(((fraction ?? 0) * 4).rounded())))
+        if let i = Self.images[k] { Image(nsImage: i) } else { Image(systemName: "gauge.with.dots.needle.67percent") }
     }
 }

@@ -114,6 +114,16 @@ final class Model: ObservableObject {
 
     var unsent: [Status.Hit] { status?.hits.filter { !$0.sent } ?? [] }
 
+    // How full the fullest limit is, 0 to 1, or nil when the logs don't say. A limit that's been hit counts as full.
+    var usedFraction: Double? {
+        guard let s = status else { return nil }
+        if s.claude?.limited_until ?? 0 > Date().timeIntervalSince1970 * 1000 { return 1 }
+        var best: Double?
+        for l in s.codex?.limits ?? [] { best = max(best ?? 0, l.used / 100) }
+        if let w = s.claude?.window, let typical = w.typical_at_limit, typical > 0 { best = max(best ?? 0, w.tokens / typical) }
+        return best.map { min(1, $0) }
+    }
+
     // The fullest limit, for the menu bar: Codex's own percentage, or Claude Code's tokens against past hits.
     var headline: String {
         guard let s = status else { return "" }
