@@ -17,7 +17,7 @@ struct HitMyLimitApp: App {
             PanelView(model: model)
         } label: {
             // A gauge, plus the fullest limit when the logs show one.
-            HStack(spacing: 3) {
+            HStack(spacing: 5) {
                 MenuBarIcon(fraction: model.usedFraction)
                 if !model.headline.isEmpty { Text(model.headline).monospacedDigit() }
             }
