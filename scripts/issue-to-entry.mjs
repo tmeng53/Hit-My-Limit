@@ -1,5 +1,6 @@
 // Turns a "Suggest a limit change" issue into a draft entry under src/content/changes.
 // Reads ISSUE_BODY and ISSUE_NUMBER; writes outputs for the workflow to GITHUB_OUTPUT.
+import { randomUUID } from 'node:crypto';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
 const OFFICIAL = [
@@ -46,7 +47,9 @@ async function checkSource(url) {
 }
 
 function output(key, value) {
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${key}<<EOF\n${value}\nEOF\n`);
+  // A random delimiter, so text from the issue can't end the value early and set other outputs.
+  const end = `END_${randomUUID()}`;
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${key}<<${end}\n${value}\n${end}\n`);
   else console.log(`${key}: ${value}`);
 }
 
