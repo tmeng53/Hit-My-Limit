@@ -48,3 +48,10 @@ test('felt is optional and limited to sooner, usual or later', () => {
   assert.equal(parseReport({ ...base, felt: 'sooner' }, today).felt, 'sooner');
   assert.throws(() => parseReport({ ...base, felt: 'angry' }, today));
 });
+
+test('models is an optional per-model token breakdown', () => {
+  const r = parseReport({ ...base, models: { Opus: { total: 100, output: 10 }, sonnet: { total: 50, output: 5 } } }, today);
+  assert.deepEqual(r.models, { opus: { total: 100, output: 10 }, sonnet: { total: 50, output: 5 } });
+  assert.throws(() => parseReport({ ...base, models: { '<x>': { total: 1 } } }, today));
+  assert.throws(() => parseReport({ ...base, models: [1] }, today));
+});

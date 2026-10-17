@@ -20,6 +20,7 @@ create table if not exists reports (
   limit_window text not null,
   minutes_to_limit integer not null,
   model text,
+  models jsonb,
   work text not null,
   account text not null,
   felt text,
@@ -88,13 +89,14 @@ export async function saveReport(r: Report): Promise<boolean> {
   const p = await db();
   const { rowCount } = await p.query(
     `insert into reports (hit_on, lab, product, plan, limit_window, minutes_to_limit, model, work, account,
-       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt, models)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      on conflict do nothing`,
     [
       r.hit_on, r.lab, r.product, r.plan, r.window, r.minutes_to_limit, r.model, r.work, r.account,
       r.tokens_total, r.tokens_input, r.tokens_output, r.tokens_cache_read, r.tokens_cache_write,
       r.tool_version, r.source, sha(r.client_id), r.felt,
+      r.models && JSON.stringify(r.models),
     ],
   );
   return rowCount === 1;
@@ -175,7 +177,7 @@ export async function groupStats(): Promise<GroupStats[]> {
 export const CSV_COLUMNS = [
   'id', 'hit_on', 'lab', 'product', 'plan', 'limit_window', 'minutes_to_limit', 'model', 'work', 'account',
   'tokens_total', 'tokens_input', 'tokens_output', 'tokens_cache_read', 'tokens_cache_write',
-  'tool_version', 'source', 'contributor', 'felt',
+  'tool_version', 'source', 'contributor', 'felt', 'models',
 ] as const;
 
 // Every visible report, for the public dataset.

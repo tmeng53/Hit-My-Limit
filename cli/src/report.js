@@ -10,6 +10,7 @@ export function buildReport(c, { plan, work, account, felt = null, clientId }) {
     minutes_to_limit: Math.max(5, Math.round((c.hit - c.start) / 300_000) * 5),
     hit_on: isoDay(new Date(c.hit)),
     model: c.model,
+    models: c.models ?? null,
     work,
     account,
     felt,

@@ -31,8 +31,10 @@ sends prompts, code, file names or paths.
   "minutes_to_limit": 155,
   "hit_on": "2026-10-16",
   "model": "opus",
+  "models": { "opus": { "total": 3600000, "output": 35000 }, "sonnet": { "total": 601030, "output": 6000 } },
   "work": "coding",
   "account": "own",
+  "felt": "sooner",
   "tokens": { "input": 30, "output": 41000, "cache_read": 3900000, "cache_write": 260000, "total": 4201030 },
   "tool_version": "2.1.160",
   "source": "cli",
@@ -56,6 +58,7 @@ sends prompts, code, file names or paths.
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200
 --work <kind>     coding, chat, research or other
 --account <type>  own, shared or reseller
+--felt <answer>   sooner, usual or later than usual (optional)
 --pick <n>        Which limit hit to share
 --yes             Send without asking
 --dry-run         Print the report and stop

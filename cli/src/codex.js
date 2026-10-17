@@ -3,6 +3,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { eachLine, jsonlFiles } from './files.js';
+import { modelBreakdown } from './models.js';
 
 export function codexDirs(env = process.env) {
   const root = env.CODEX_HOME || join(homedir(), '.codex');
@@ -96,13 +97,13 @@ export function codexHits({ usage, hits }) {
   return out.map((c) => {
     const inWindow = usage.filter((u) => u.time >= c.start && u.time <= c.hit);
     const sum = (k) => inWindow.reduce((n, u) => n + u[k], 0);
-    const byModel = {};
-    for (const u of inWindow) if (u.model) byModel[u.model] = (byModel[u.model] ?? 0) + u.output;
+    const { models, main } = modelBreakdown(inWindow, (m) => (m ? String(m).toLowerCase().slice(0, 40) : null));
     const tokens = { input: sum('input'), output: sum('output'), cache_read: sum('cacheRead'), cache_write: 0 };
     tokens.total = tokens.input + tokens.output + tokens.cache_read;
     return {
       ...c,
-      model: Object.entries(byModel).sort((a, b) => b[1] - a[1])[0]?.[0]?.toLowerCase().slice(0, 40) ?? null,
+      model: main,
+      models,
       tokens: inWindow.length ? tokens : null,
       tool_version: c.version ?? inWindow.at(-1)?.version ?? null,
     };

@@ -5,7 +5,7 @@ export const prerender = false;
 
 function cell(v: unknown) {
   if (v === null || v === undefined) return '';
-  const s = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
+  const s = v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'object' ? JSON.stringify(v) : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

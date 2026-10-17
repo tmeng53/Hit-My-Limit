@@ -44,6 +44,8 @@ export interface Report {
   minutes_to_limit: number;
   hit_on: string;
   model: string | null;
+  // Tokens per model in the window, from the command-line tool.
+  models: Record<string, { total: number; output: number }> | null;
   work: (typeof WORK)[number];
   account: (typeof ACCOUNTS)[number];
   felt: (typeof FELT)[number] | null;
@@ -68,6 +70,23 @@ function tokenCount(v: unknown, name: string): number | null {
   const n = Number(v);
   if (!Number.isInteger(n) || n < 0 || n > MAX_TOKENS) throw new Error(`${name} must be a whole number`);
   return n;
+}
+
+const MODEL = /^[a-z0-9][a-z0-9 ._-]{0,39}$/;
+
+function modelBreakdown(v: unknown): Report['models'] {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new Error('models must be an object');
+  const entries = Object.entries(v as Record<string, any>);
+  if (entries.length === 0) return null;
+  if (entries.length > 8) throw new Error('models has too many entries');
+  const out: Record<string, { total: number; output: number }> = {};
+  for (const [name, t] of entries) {
+    const key = name.trim().toLowerCase();
+    if (!MODEL.test(key)) throw new Error('models has an invalid model name');
+    out[key] = { total: tokenCount(t?.total, 'models.total') ?? 0, output: tokenCount(t?.output, 'models.output') ?? 0 };
+  }
+  return out;
 }
 
 function shortText(v: unknown, name: string, pattern: RegExp): string | null {
@@ -120,7 +139,8 @@ export function parseReport(body: unknown, today = new Date()): Report {
     window,
     minutes_to_limit: minutes,
     hit_on: b.hit_on,
-    model: shortText(b.model, 'model', /^[a-z0-9][a-z0-9 ._-]{0,39}$/),
+    model: shortText(b.model, 'model', MODEL),
+    models: modelBreakdown(b.models),
     work: b.work,
     account,
     felt,
