@@ -88,8 +88,8 @@ struct PanelView: View {
                     Spacer(minLength: 0)
                 }
                 if let typical = w.typical_at_limit, typical > 0 {
-                    Text("Ring: share of the \(Format.tokens(typical)) tokens you'd used when you last hit this limit.")
-                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                    Text("\(Int((100 * w.tokens / typical).rounded()))% of the \(Format.tokens(typical)) tokens you usually reach before this limit. Claude app use isn't counted.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
@@ -151,12 +151,11 @@ struct PanelView: View {
             ForEach(list.prefix(4)) { h in
                 HStack(spacing: 8) {
                     Circle().fill(Look.lab(h.lab)).frame(width: 7, height: 7)
-                    Text("\(Options.products[h.product] ?? h.product) · \(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window)")
-                        .font(.system(size: 12))
+                    Text(Options.products[h.product] ?? h.product).font(.system(size: 12)).lineLimit(1)
+                    Text("\(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window), ran out after \(Format.duration(minutes: (h.hit - h.start) / 60000))")
+                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text("after \(Format.duration(minutes: (h.hit - h.start) / 60000))").font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
-                    Text(Format.ago(date(h.hit))).font(.system(size: 11)).foregroundStyle(.secondary)
-                        .frame(width: 74, alignment: .trailing)
+                    Text(Format.ago(date(h.hit))).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 4)
             }

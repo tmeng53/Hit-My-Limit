@@ -84,6 +84,7 @@ enum Preview {
         let settings = window(SettingsView(model: model), title: "Hit My Limit Settings")
         settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
         NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
         // Window numbers for `screencapture -l`.
         if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
             try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)

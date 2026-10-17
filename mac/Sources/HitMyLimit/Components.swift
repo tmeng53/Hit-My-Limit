@@ -116,7 +116,7 @@ extension View {
     // The primary button: Liquid Glass on macOS 26, a regular prominent button before.
     @ViewBuilder func primaryButton() -> some View {
         if #available(macOS 26, *) {
-            self.buttonStyle(.glassProminent).controlSize(.large)
+            self.buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
         } else {
             self.buttonStyle(.borderedProminent).controlSize(.large)
         }
