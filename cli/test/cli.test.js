@@ -146,3 +146,15 @@ test('Codex: finds a hit recorded as a refused turn after the last snapshot', as
   assert.equal(hits[0].plan, 'plus');
   assert.equal(new Date(hits[0].start).toISOString(), '2026-10-04T00:00:00.000Z');
 });
+
+test('Claude Code: reads "session limit" notices and the 12:20am reset format', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
+  writeFileSync(join(dir, 'a.jsonl'), lines([
+    assistant('2026-10-15T23:00:00Z', 1, { input_tokens: 1, output_tokens: 1 }),
+    notice('2026-10-16T02:05:00Z', "You've hit your session limit · resets 12:20am (America/New_York)"),
+  ]));
+  const [h] = claudeHits(await readClaude([dir], since));
+  assert.equal(h.window, '5h');
+  assert.equal(new Date(h.start).toISOString(), '2026-10-15T23:20:00.000Z');
+  assert.equal(buildReport(h, { plan: 'pro', work: 'coding', account: 'own', clientId: 'a'.repeat(32) }).minutes_to_limit, 165);
+});

@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { eachLine, jsonlFiles } from './files.js';
 import { HOUR, DAY, parseReset } from './time.js';
 
-const LIMIT = /limit reached|hit your (?:usage )?limit|limit will reset/i;
+// e.g. "5-hour limit reached ∙ resets 3pm", "You've hit your session limit · resets 12:20am (America/New_York)"
+const LIMIT = /limit reached|hit your (?:[a-z-]+ )?limit|limit will reset/i;
 
 export function claudeDirs(env = process.env) {
   const roots = env.CLAUDE_CONFIG_DIR
