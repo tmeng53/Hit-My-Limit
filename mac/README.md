@@ -14,9 +14,13 @@ login or credential files, never reads browser cookies, and never contacts Anthr
   Use of the Claude app counts toward the same limit and isn't in these logs.
 - **Tokens before you hit the limit**: your hits this week next to your earlier ones. A drop with the same
   kind of work is what a quiet cut looks like.
-- **Change log**: the latest entries from hitmylimit.com, with a notification when a new one is added for a lab
-  you use.
-- **Share**: sends your new limit hits to hitmylimit.com after showing the exact data. Optional.
+- **Limit hits**: one bar per day for the last 30 days.
+- **News**: the latest change-log entries from hitmylimit.com, with a notification when a lab changes its limits
+  or gives out a free reset.
+- **Providers**: pick Anthropic, OpenAI and Google in Settings. Turned-off providers are hidden and send no
+  notifications.
+- **Share**: sends your new limit hits to hitmylimit.com. Optional; the exact data is one click away. Afterwards
+  it shows how your hit compares with others on your plan.
 
 ## Install
 

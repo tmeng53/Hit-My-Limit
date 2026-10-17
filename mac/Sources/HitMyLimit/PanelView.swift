@@ -113,7 +113,7 @@ struct PanelView: View {
         ) {
             ForEach(rest, id: \.window) { l in
                 HStack(spacing: 10) {
-                    Text(name(l).capitalized).font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(name(l).prefix(1).uppercased() + name(l).dropFirst()).font(.system(size: 12)).foregroundStyle(.secondary)
                     Bar(fraction: l.used / 100, tint: Look.bar(l.used, .secondary), height: 4)
                     Text("\(Int(l.used.rounded()))%").font(.system(size: 12, weight: .semibold)).monospacedDigit()
                         .frame(minWidth: 34, alignment: .trailing)
