@@ -5,6 +5,7 @@ lab: openai
 product: "Codex and ChatGPT Work"
 plans: ["Plus"]
 kind: limit
+direction: tighter
 title: "5-hour Codex limit returns for ChatGPT Plus"
 summary: "OpenAI brought back the rolling 5-hour limit for Plus users of Codex and ChatGPT Work, in full effect August 25, and reset weekly limits that day. The 5-hour limit stays off for both Pro tiers for the coming months."
 title_zh: "ChatGPT Plus 的 Codex 5 小时额度恢复"

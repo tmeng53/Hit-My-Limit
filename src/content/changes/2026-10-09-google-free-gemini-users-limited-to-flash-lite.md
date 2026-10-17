@@ -5,6 +5,7 @@ lab: google
 product: "Gemini app"
 plans: ["Free", "AI Plus", "AI Pro", "AI Ultra"]
 kind: limit
+direction: tighter
 title: "Free Gemini users limited to Flash-Lite"
 summary: "Google removed Flash and Pro models from the free Gemini app tier from October 9, 2026, leaving Flash-Lite. AI Plus keeps Flash but not Pro; AI Pro is the cheapest plan with all three models."
 title_zh: "免费 Gemini 用户只能用 Flash-Lite"

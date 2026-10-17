@@ -5,6 +5,7 @@ lab: openai
 product: "Codex"
 plans: ["Plus", "Pro"]
 kind: limit
+direction: mixed
 title: "New $100 Pro tier with 5x Plus Codex usage"
 summary: "OpenAI added a $100/month Pro plan with 5x the Codex usage of Plus (up to 10x through May 31), while the $200 Pro plan offers 20x. Plus usage was rebalanced to spread sessions across the week rather than allow long single-day sessions."
 title_zh: "新增 100 美元 Pro 档，Codex 用量为 Plus 的 5 倍"

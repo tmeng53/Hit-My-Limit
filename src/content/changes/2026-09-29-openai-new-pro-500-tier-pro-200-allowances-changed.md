@@ -5,6 +5,7 @@ lab: openai
 product: "ChatGPT and Codex"
 plans: ["Pro"]
 kind: limit
+direction: mixed
 title: "New Pro 500 tier; Pro 200 allowances changed"
 summary: "OpenAI added a $500/month Pro plan with the highest included usage of the Pro plans and brought back Pro 200 at an unchanged price with changed included allowances."
 title_zh: "新增 Pro 500 档，Pro 200 额度调整"

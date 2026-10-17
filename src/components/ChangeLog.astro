@@ -1,5 +1,6 @@
 ---
-import { BUTTONDOWN_USER, LABS, SUBMIT_URL, formatDate, summaryFor, t, titleFor, type Change, type Lang } from '../lib/site';
+import Timeline from './Timeline.astro';
+import { BUTTONDOWN_USER, LABS, formatDate, monthKey, summaryFor, t, titleFor, type Change, type Lang } from '../lib/site';
 
 interface Props {
   lang: Lang;
@@ -7,78 +8,170 @@ interface Props {
 }
 const { lang, changes } = Astro.props;
 const s = t[lang];
+const count = (d: string) => changes.filter((c) => c.data.direction === d).length;
+const tally = (['tighter', 'looser', 'mixed'] as const).map((d) => ({ d, n: count(d) }));
+
+const groups: { month: string; items: Change[] }[] = [];
+for (const c of changes) {
+  const month = monthKey(c.data.date, lang);
+  if (groups.at(-1)?.month !== month) groups.push({ month, items: [] });
+  groups.at(-1)!.items.push(c);
+}
+const glyph = { tighter: '▼', looser: '▲', mixed: '◆', neutral: '○' } as const;
 ---
-<section class="intro">
-  <h1>{s.tagline}</h1>
-  <p>{s.lead}</p>
-  <div class="actions">
-    <form class="signup" action={`https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USER}`} method="post" target="_blank">
-      <label for="email" class="sr-only">{s.alerts}</label>
-      <input id="email" type="email" name="email" required placeholder={s.emailPlaceholder} />
-      <input type="hidden" name="tag" value={lang} />
-      <button type="submit">{s.subscribe}</button>
-    </form>
-    <a class="submit" href={SUBMIT_URL}>{s.submit}</a>
+<section class="hero">
+  <h1>{s.headline}<br /><em>{s.headline2}</em></h1>
+  <div class="side">
+    <p class="lead">{s.lead}</p>
+    <dl class="tally">
+      <div class="total"><dt>{s.since}</dt><dd>{changes.length}</dd></div>
+      {tally.map(({ d, n }) => (
+        <div class={d}><dt>{glyph[d]} {s[d]}</dt><dd>{n}</dd></div>
+      ))}
+    </dl>
   </div>
 </section>
 
-<div class="filters" role="group" aria-label="Lab">
-  <button type="button" data-filter="all" aria-pressed="true">{s.all}</button>
-  {Object.entries(LABS).map(([key, names]) => (
-    <button type="button" data-filter={key} aria-pressed="false">{names[lang]}</button>
-  ))}
+<Timeline lang={lang} changes={changes} />
+
+<form class="signup" action={`https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USER}`} method="post" target="_blank">
+  <label for="email">{s.alerts}</label>
+  <div class="row">
+    <input id="email" type="email" name="email" required placeholder={s.emailPlaceholder} />
+    <input type="hidden" name="tag" value={lang} />
+    <button type="submit">{s.subscribe} →</button>
+  </div>
+</form>
+
+<div class="ledger-head">
+  <h2>{s.ledger}</h2>
+  <div class="filters" role="group" aria-label="Lab">
+    <button type="button" data-filter="all" aria-pressed="true">{s.all}</button>
+    {Object.entries(LABS).map(([key, names]) => (
+      <button type="button" data-filter={key} aria-pressed="false">{names[lang]}</button>
+    ))}
+  </div>
 </div>
 
-<ol class="log">
-  {changes.map((c) => (
-    <li data-lab={c.data.lab} id={c.id}>
-      <div class="meta">
-        <time datetime={c.data.date.toISOString().slice(0, 10)}>{formatDate(c.data.date, lang)}</time>
-        <span class="chip">{LABS[c.data.lab][lang]} · {c.data.product}</span>
-        <span class="chip">{c.data.kind === 'limit' ? s.limit : s.display}</span>
-        {c.data.status === 'unconfirmed' && <span class="chip warn" title={s.unconfirmedHint}>{s.unconfirmed}</span>}
-      </div>
-      <h2><a href={`#${c.id}`}>{titleFor(c, lang)}</a></h2>
-      <p>{summaryFor(c, lang)}</p>
-      <p class="source">
-        {c.data.plans.length > 0 && <span>{c.data.plans.join(', ')} · </span>}
-        {s.source}: <a href={c.data.source_url} rel="nofollow noopener">{c.data.source_name}</a>
-        <span> ({s[c.data.date_kind]})</span>
-      </p>
-    </li>
-  ))}
-</ol>
+{groups.map((g) => (
+  <section class="month">
+    <h3>{g.month}</h3>
+    <ol>
+      {g.items.map((c) => (
+        <li data-lab={c.data.lab} id={c.id} class={c.data.direction}>
+          <time datetime={c.data.date.toISOString().slice(0, 10)}>{formatDate(c.data.date, lang)}</time>
+          <div class="body">
+            <p class="who">{LABS[c.data.lab][lang]} / {c.data.product}{c.data.plans.length > 0 && <span> / {c.data.plans.join(', ')}</span>}</p>
+            <h4><a href={`#${c.id}`}>{titleFor(c, lang)}</a></h4>
+            <p>{summaryFor(c, lang)}</p>
+            <p class="src">
+              <a href={c.data.source_url} rel="nofollow noopener">{c.data.source_name} ↗</a>
+              <span>{s[c.data.date_kind]}</span>
+              {c.data.status === 'unconfirmed' && <span class="unconf" title={s.unconfirmedHint}>{s.unconfirmed}</span>}
+            </p>
+          </div>
+          <span class="dir" title={s[c.data.direction]}>{glyph[c.data.direction]}<span class="dl">{s[c.data.direction]}</span></span>
+        </li>
+      ))}
+    </ol>
+  </section>
+))}
 
 <script>
   const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
-  const items = document.querySelectorAll<HTMLElement>('.log > li');
+  const items = document.querySelectorAll<HTMLElement>('.month li');
   for (const b of buttons) {
     b.addEventListener('click', () => {
       const f = b.dataset.filter;
       for (const x of buttons) x.setAttribute('aria-pressed', String(x === b));
       for (const li of items) li.hidden = f !== 'all' && li.dataset.lab !== f;
+      for (const m of document.querySelectorAll<HTMLElement>('.month')) {
+        m.hidden = !m.querySelector('li:not([hidden])');
+      }
     });
   }
 </script>
 
 <style>
-  .intro h1 { font-size: 28px; line-height: 1.25; margin: 40px 0 8px; letter-spacing: -0.02em; }
-  .intro p { color: var(--muted); margin: 0 0 20px; }
-  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .signup { display: flex; gap: 8px; flex: 1 1 260px; max-width: 100%; min-width: 0; }
-  .signup input[type='email'] { flex: 1; min-width: 0; width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; }
-  button, .submit { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); color: inherit; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-  .signup button { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0 8px; }
-  .filters button[aria-pressed='true'] { border-color: var(--fg); }
-  .log { list-style: none; padding: 0; margin: 0; }
-  .log li { padding: 20px 0; border-bottom: 1px solid var(--line); }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
-  .chip { background: var(--chip); padding: 1px 8px; border-radius: 999px; }
-  .chip.warn { color: var(--warn); }
-  h2 { font-size: 18px; margin: 8px 0 4px; line-height: 1.35; }
-  h2 a { text-decoration: none; }
-  .log p { margin: 0; }
-  .source { font-size: 13px; color: var(--muted); margin-top: 6px !important; }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .hero {
+    display: grid; grid-template-columns: 1.25fr 1fr; gap: 40px; align-items: end;
+    padding: 56px 0 40px;
+  }
+  h1 {
+    font: 400 clamp(48px, 7.2vw, 88px)/0.95 var(--serif);
+    letter-spacing: -0.02em; margin: 0;
+  }
+  h1 em { font-style: italic; color: var(--tighter); }
+  h1:lang(zh) { font-size: clamp(34px, 4.6vw, 56px); word-break: keep-all; line-height: 1.15; letter-spacing: 0; }
+  h1:lang(zh) em { font-style: normal; }
+  .lead { margin: 0 0 24px; font-size: 17px; color: var(--muted); max-width: 42ch; }
+  .tally { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; border-top: 1.5px solid var(--rule); }
+  .tally div { padding: 10px 12px 0 0; }
+  .tally dt { font: 11px/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; min-height: 2.6em; }
+  .tally dd { margin: 4px 0 0; font: 400 44px/1 var(--serif); }
+  .tally .tighter dd, .tally .tighter dt { color: var(--tighter); }
+  .tally .looser dd, .tally .looser dt { color: var(--looser); }
+  .tally .mixed dd, .tally .mixed dt { color: var(--mixed); }
+
+  .signup {
+    display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center;
+    margin: 40px 0 0; padding: 18px 0; border-top: 1.5px solid var(--rule); border-bottom: 1.5px solid var(--rule);
+  }
+  .signup label { font: 400 26px/1.1 var(--serif); }
+  .row { display: flex; }
+  .row input[type='email'] {
+    flex: 1; min-width: 0; padding: 12px 14px; font: 15px var(--mono);
+    background: transparent; color: inherit; border: 1.5px solid var(--rule); border-right: 0; border-radius: 0;
+  }
+  .row button {
+    padding: 12px 18px; font: 500 14px var(--mono); cursor: pointer; white-space: nowrap;
+    background: var(--ink); color: var(--paper); border: 1.5px solid var(--rule); border-radius: 0;
+  }
+  .row button:hover { background: var(--tighter); border-color: var(--tighter); color: #fff; }
+
+  .ledger-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 56px 0 8px; }
+  h2 { font: 400 40px/1 var(--serif); margin: 0; }
+  .filters { display: flex; gap: 4px; font-family: var(--mono); }
+  .filters button {
+    padding: 6px 10px; font: 13px var(--mono); background: none; color: var(--muted);
+    border: 1.5px solid transparent; border-radius: 0; cursor: pointer;
+  }
+  .filters button[aria-pressed='true'] { color: var(--ink); border-color: var(--rule); }
+
+  .month h3 {
+    font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: 0.1em;
+    margin: 0; padding: 22px 0 8px; border-bottom: 1.5px solid var(--rule);
+  }
+  .month ol { list-style: none; margin: 0; padding: 0; }
+  .month li {
+    display: grid; grid-template-columns: 120px 1fr 92px; gap: 24px;
+    padding: 18px 0; border-bottom: 1px solid var(--hair);
+    scroll-margin-top: 24px;
+  }
+  .month li:target { background: linear-gradient(90deg, color-mix(in srgb, var(--tighter) 10%, transparent), transparent); }
+  time { font: 13px var(--mono); color: var(--muted); padding-top: 3px; }
+  .who { font: 12px var(--mono); color: var(--muted); margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  h4 { font: 600 19px/1.3 var(--sans); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h4 a { text-decoration: none; }
+  h4 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .body p { margin: 0; max-width: 64ch; }
+  .src { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px !important; font: 12px var(--mono); color: var(--muted); }
+  .src a { color: var(--ink); text-underline-offset: 3px; }
+  .unconf { color: var(--mixed); border: 1px solid currentColor; padding: 0 6px; }
+  .dir { text-align: right; font: 18px/1.2 var(--mono); }
+  .dl { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .tighter .dir { color: var(--tighter); }
+  .looser .dir { color: var(--looser); }
+  .mixed .dir { color: var(--mixed); }
+  .neutral .dir { color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; gap: 24px; padding: 36px 0 28px; }
+    .signup { grid-template-columns: 1fr; }
+    .month li { grid-template-columns: 1fr auto; gap: 4px 16px; }
+    .month li time { grid-column: 1; grid-row: 1; padding: 0; }
+    .month li .dir { grid-column: 2; grid-row: 1 / span 2; }
+    .month li .body { grid-column: 1; grid-row: 2; }
+    .tally dd { font-size: 36px; }
+  }
 </style>

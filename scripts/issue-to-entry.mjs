@@ -9,6 +9,7 @@ const OFFICIAL = [
   'theinformation.com', 'wired.com', 'reuters.com', 'bloomberg.com',
 ];
 const LABS = { anthropic: 'anthropic', openai: 'openai', google: 'google' };
+const DIRECTIONS = { Tighter: 'tighter', Looser: 'looser', Mixed: 'mixed', 'Display only': 'neutral' };
 
 function parseIssueForm(body) {
   const fields = {};
@@ -80,6 +81,7 @@ lab: ${lab}
 product: ${yamlString(f['Product'])}
 plans: [${plans.map(yamlString).join(', ')}]
 kind: ${f['Kind of change'].startsWith('How usage') ? 'display' : 'limit'}
+direction: ${DIRECTIONS[f['Did limits get tighter or looser?']] ?? 'mixed'}
 title: ${yamlString(title)}
 summary: ${yamlString(f['Details'])}
 source_url: ${yamlString(source.href)}

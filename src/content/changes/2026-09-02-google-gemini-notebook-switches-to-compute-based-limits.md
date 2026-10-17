@@ -5,6 +5,7 @@ lab: google
 product: "Gemini Notebook"
 plans: ["Free", "AI Plus", "AI Pro", "AI Ultra"]
 kind: limit
+direction: mixed
 title: "Gemini Notebook switches to compute-based limits"
 summary: "Daily feature-generation counts are replaced by compute-based limits that refresh every five hours, rolling out from September 2. A status line now warns when you are near the limit and shows when it resets, and Studio outputs show an expected-cost indicator."
 title_zh: "Gemini Notebook 改为按算力计的额度"

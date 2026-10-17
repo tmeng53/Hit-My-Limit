@@ -5,6 +5,7 @@ lab: openai
 product: "ChatGPT Work"
 plans: ["Plus", "Pro", "Business"]
 kind: display
+direction: neutral
 title: "ChatGPT shows remaining Work usage in sidebar"
 summary: "OpenAI's release notes say eligible personal-plan and Business users can now see their remaining ChatGPT Work usage in the sidebar."
 title_zh: "ChatGPT 在侧边栏显示剩余 Work 用量"

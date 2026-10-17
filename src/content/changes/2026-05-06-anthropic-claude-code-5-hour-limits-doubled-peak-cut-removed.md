@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max", "Team", "Enterprise"]
 kind: limit
+direction: looser
 title: "Claude Code 5-hour limits doubled, peak cut removed"
 summary: "Anthropic doubled Claude Code's five-hour rate limits for Pro, Max, Team and seat-based Enterprise plans, effective the same day. It also removed the peak-hours limit reduction for Claude Code on Pro and Max."
 title_zh: "Claude Code 5 小时额度翻倍，取消高峰削减"

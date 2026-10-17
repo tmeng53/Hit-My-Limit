@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max"]
 kind: display
+direction: neutral
 title: "/usage stops showing percent of limit used"
 summary: "A user reported that in Claude Code v2.1.160 the /usage command no longer showed a progress bar or percentage of the session and weekly limits, only cost and category breakdowns. The report was closed as a duplicate."
 title_zh: "/usage 不再显示已用额度百分比"

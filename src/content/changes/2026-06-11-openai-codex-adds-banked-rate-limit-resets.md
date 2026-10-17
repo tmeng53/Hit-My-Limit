@@ -5,6 +5,7 @@ lab: openai
 product: "Codex"
 plans: ["Plus", "Pro"]
 kind: limit
+direction: looser
 title: "Codex adds banked rate-limit resets"
 summary: "Eligible Plus and Pro users can bank rate-limit resets, with one free reset at launch, and banked resets last 30 days. Usage-limit errors now also show when the limit resets, where available."
 title_zh: "Codex 推出可储存的额度重置"

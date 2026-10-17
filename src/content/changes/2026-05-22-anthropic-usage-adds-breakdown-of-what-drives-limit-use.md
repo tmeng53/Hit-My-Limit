@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max"]
 kind: display
+direction: neutral
 title: "/usage adds breakdown of what drives limit use"
 summary: "Claude Code v2.1.149 added a per-category breakdown to /usage showing what is driving limits usage: skills, subagents, plugins and per-MCP-server cost. The date is the npm release date of that version."
 title_zh: "/usage 新增额度消耗来源明细"

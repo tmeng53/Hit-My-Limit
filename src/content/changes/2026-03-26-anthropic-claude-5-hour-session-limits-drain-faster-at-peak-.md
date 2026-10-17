@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude.ai and Claude Code"
 plans: ["Free", "Pro", "Max"]
 kind: limit
+direction: tighter
 title: "Claude 5-hour session limits drain faster at peak hours"
 summary: "An Anthropic engineer said on X that the 5-hour session limit runs down faster on weekdays 5am-11am PT, while weekly limits stay the same. He said about 7% of users would hit session limits they would not have hit before."
 title_zh: "高峰时段 Claude 的 5 小时额度消耗更快"

@@ -13,6 +13,8 @@ const changes = defineCollection({
     product: z.string(),
     plans: z.array(z.string()).default([]),
     kind: z.enum(['limit', 'display']),
+    // Which way limits moved for users; neutral for display-only changes
+    direction: z.enum(['tighter', 'looser', 'mixed', 'neutral']),
     title: z.string().max(90),
     summary: z.string(),
     title_zh: z.string().optional(),

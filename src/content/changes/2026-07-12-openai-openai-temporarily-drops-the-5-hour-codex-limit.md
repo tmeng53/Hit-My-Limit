@@ -5,6 +5,7 @@ lab: openai
 product: "Codex and ChatGPT Work"
 plans: ["Plus", "Business", "Pro"]
 kind: limit
+direction: looser
 title: "OpenAI temporarily drops the 5-hour Codex limit"
 summary: "After demand for GPT-5.6 Sol surged, OpenAI's Codex lead said the 5-hour usage limit was temporarily removed for Plus, Business and Pro plans and usage was reset for everyone. Weekly limits still applied."
 title_zh: "OpenAI 临时取消 Codex 的 5 小时额度"

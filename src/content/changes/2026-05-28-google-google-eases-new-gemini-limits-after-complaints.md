@@ -5,6 +5,7 @@ lab: google
 product: "Gemini app"
 plans: ["Free", "AI Pro", "AI Ultra"]
 kind: limit
+direction: looser
 title: "Google eases new Gemini limits after complaints"
 summary: "Google capped how much quota a single Gemini 3.1 Pro prompt can use, stopped charging failed requests, and made Flash-Lite prompts free. It said the gemini.google.com/usage page only gives a high-level overview and promised more detailed breakdowns."
 title_zh: "用户抱怨后，Google 放宽 Gemini 新额度"

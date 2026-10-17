@@ -47,6 +47,17 @@ body:
         - How usage is displayed changed
     validations:
       required: true
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Did limits get tighter or looser?
+      options:
+        - Tighter
+        - Looser
+        - Mixed
+        - Display only
+    validations:
+      required: true
   - type: input
     id: title
     attributes:

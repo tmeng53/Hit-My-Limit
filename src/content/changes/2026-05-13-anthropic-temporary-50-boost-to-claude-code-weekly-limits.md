@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max", "Team", "Enterprise"]
 kind: limit
+direction: looser
 title: "Temporary 50% boost to Claude Code weekly limits"
 summary: "Anthropic raised Claude Code weekly limits by 50% starting May 13, 2026 for Pro, Max, Team and seat-based Enterprise users. Five-hour limits and other Claude products were unchanged; the promotion was later extended several times."
 title_zh: "Claude Code 每周额度临时提高 50%"

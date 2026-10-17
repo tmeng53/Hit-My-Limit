@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max", "Team", "Enterprise"]
 kind: limit
+direction: tighter
 title: "Claude Code weekly limits settle 25% above old baseline"
 summary: "The temporary 50% weekly boost ended and was replaced on September 14 by a permanent 25% increase over the original allowance, about 17% less than during the promotion. Anthropic first called it a raise, then posted a clarification acknowledging the 17% reduction."
 title_zh: "Claude Code 每周额度定在比原来高 25%"

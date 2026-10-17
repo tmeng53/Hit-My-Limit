@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max"]
 kind: limit
+direction: tighter
 title: "Claude Code limits tightened without notice"
 summary: "From Monday July 14, heavy Claude Code users, many on the $200 Max plan, hit stricter usage limits that Anthropic had not announced. Users saw only a 'Claude usage limit reached' message with a reset time, and Anthropic gave no details."
 title_zh: "Claude Code 额度在未通知的情况下收紧"

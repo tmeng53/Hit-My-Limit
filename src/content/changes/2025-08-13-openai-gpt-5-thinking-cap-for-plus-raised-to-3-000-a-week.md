@@ -5,6 +5,7 @@ lab: openai
 product: "ChatGPT"
 plans: ["Plus"]
 kind: limit
+direction: looser
 title: "GPT-5 Thinking cap for Plus raised to 3,000 a week"
 summary: "Sam Altman said the GPT-5 Thinking limit for ChatGPT Plus users went from 200 messages per week at launch to 3,000 per week, and that rate limits may change depending on usage."
 title_zh: "Plus 的 GPT-5 Thinking 上限提高到每周 3000 条"

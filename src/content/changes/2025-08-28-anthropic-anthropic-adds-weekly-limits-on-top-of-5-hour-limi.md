@@ -5,6 +5,7 @@ lab: anthropic
 product: "Claude Code"
 plans: ["Pro", "Max"]
 kind: limit
+direction: tighter
 title: "Anthropic adds weekly limits on top of 5-hour limits"
 summary: "Announced July 28, 2025: two weekly limits, one overall and one for Opus 4, were added on top of the 5-hour limits starting August 28. Anthropic estimated Pro gets about 40-80 hours of Sonnet 4 a week in Claude Code and said fewer than 5% of subscribers would be affected."
 title_zh: "Anthropic 在 5 小时额度之外新增每周额度"

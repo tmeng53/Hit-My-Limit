@@ -5,6 +5,7 @@ lab: google
 product: "Gemini CLI"
 plans: ["Free", "AI Pro", "AI Ultra"]
 kind: limit
+direction: tighter
 title: "Gemini CLI free tier limited to Flash models"
 summary: "The Gemini CLI team announced on March 18 that from March 25, Gemini Pro models are only available with a paid subscription and free users are limited to Flash. Traffic is also prioritized by license type, so some users may hit capacity limits at busy times."
 title_zh: "Gemini CLI 免费版只能用 Flash 模型"
