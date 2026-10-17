@@ -165,7 +165,7 @@ struct PanelView: View {
     private var changes: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                SectionTitle(text: "Limit changes")
+                SectionTitle(text: "Limit changes and resets")
                 Spacer()
                 Button("All") { Links.open(Links.site) }.buttonStyle(.link).font(.system(size: 11)).padding(.trailing, 4)
             }
@@ -176,6 +176,13 @@ struct PanelView: View {
                         HStack(spacing: 5) {
                             Text(c.lab.flatMap { Options.labs[$0] } ?? "Change")
                                 .font(.system(size: 10, weight: .semibold)).foregroundStyle(Look.lab(c.lab))
+                            if c.isReset {
+                                Text("Free reset")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(Look.plus.opacity(0.15), in: Capsule())
+                                    .foregroundStyle(Look.plus)
+                            }
                             if let d = c.date { Text(Format.ago(d)).font(.system(size: 10)).foregroundStyle(.tertiary) }
                         }
                         Text(c.title).font(.system(size: 12)).lineLimit(2).multilineTextAlignment(.leading)

@@ -31,6 +31,7 @@ enum Preview {
     }
 
     static let sampleChanges: [Change] = [
+        Change(id: "0", lab: "anthropic", title: "Usage limits reset for all paid plans after an outage", link: nil, date: Date().addingTimeInterval(-3600), kind: "reset"),
         Change(id: "1", lab: "google", title: "Free Gemini users limited to Flash-Lite", link: nil, date: Date().addingTimeInterval(-8 * 86400)),
         Change(id: "2", lab: "openai", title: "New Pro $500 tier; Pro $200 allowances changed", link: nil, date: Date().addingTimeInterval(-18 * 86400)),
         Change(id: "3", lab: "anthropic", title: "Claude Code weekly limits settle 25% above old base", link: nil, date: Date().addingTimeInterval(-33 * 86400)),

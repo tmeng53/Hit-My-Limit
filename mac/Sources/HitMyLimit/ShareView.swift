@@ -135,7 +135,7 @@ struct ShareView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .rotationEffect(.degrees(showRaw ? 90 : 0))
                     Text("Exact data").font(.system(size: 12, weight: .medium))
-                    Text("Optional. Only if you want to check nothing private goes out.")
+                    Text("Optional, to check nothing private is sent")
                         .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .contentShape(Rectangle())

@@ -18,6 +18,7 @@ final class Model: ObservableObject {
     // Settings, kept in UserDefaults.
     @Published var notifyChanges: Bool { didSet { defaults.set(notifyChanges, forKey: "notifyChanges") } }
     @Published var notifyNearLimit: Bool { didSet { defaults.set(notifyNearLimit, forKey: "notifyNearLimit") } }
+    @Published var notifyResets: Bool { didSet { defaults.set(notifyResets, forKey: "notifyResets") } }
     @Published var openAtLogin: Bool {
         didSet {
             do {
@@ -45,7 +46,8 @@ final class Model: ObservableObject {
 
     init() {
         let d = UserDefaults.standard
-        d.register(defaults: ["notifyChanges": true, "notifyNearLimit": true])
+        d.register(defaults: ["notifyChanges": true, "notifyNearLimit": true, "notifyResets": true])
+        notifyResets = d.bool(forKey: "notifyResets")
         notifyChanges = d.bool(forKey: "notifyChanges")
         notifyNearLimit = d.bool(forKey: "notifyNearLimit")
         openAtLogin = SMAppService.mainApp.status == .enabled
@@ -92,9 +94,13 @@ final class Model: ObservableObject {
         }
         let new = list.filter { !seen.contains($0.id) }
         seenChanges = seen.union(new.map(\.id))
-        guard notifyChanges else { return }
         for c in new where c.lab.map(usedLabs.contains) ?? true {
-            Notify.post(id: c.id, title: "\(c.lab.flatMap { Options.labs[$0] } ?? "Change log"): limit change", body: c.title, link: c.link)
+            let lab = c.lab.flatMap { Options.labs[$0] } ?? "Change log"
+            if c.isReset {
+                if notifyResets { Notify.post(id: c.id, title: "\(lab): free limit reset", body: c.title, link: c.link) }
+            } else if notifyChanges {
+                Notify.post(id: c.id, title: "\(lab): limit change", body: c.title, link: c.link)
+            }
         }
     }
 

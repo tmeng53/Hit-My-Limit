@@ -7,6 +7,7 @@ struct SettingsView: View {
         Form {
             Section("Notifications") {
                 Toggle("When a lab changes its usage limits", isOn: $model.notifyChanges)
+                Toggle("When a lab gives out a free limit reset", isOn: $model.notifyResets)
                 Toggle("At 90% of a Codex limit", isOn: $model.notifyNearLimit)
             }
             Section {

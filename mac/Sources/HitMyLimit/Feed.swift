@@ -7,6 +7,9 @@ struct Change: Identifiable, Codable, Equatable {
     let title: String
     let link: URL?
     let date: Date?
+    // "reset" for a free limit reset, from the item's <category>; anything else is a limit change.
+    var kind: String? = nil
+    var isReset: Bool { kind == "reset" }
 }
 
 final class FeedParser: NSObject, XMLParserDelegate {
@@ -22,7 +25,7 @@ final class FeedParser: NSObject, XMLParserDelegate {
         xml.parse()
         // Links in the feed are relative to the site.
         return p.items.map { c in
-            Change(id: c.id, lab: c.lab, title: c.title, link: c.link.flatMap { URL(string: $0.relativeString, relativeTo: base)?.absoluteURL }, date: c.date)
+            Change(id: c.id, lab: c.lab, title: c.title, link: c.link.flatMap { URL(string: $0.relativeString, relativeTo: base)?.absoluteURL }, date: c.date, kind: c.kind)
         }
     }
 
@@ -48,7 +51,8 @@ final class FeedParser: NSObject, XMLParserDelegate {
                 lab: lab,
                 title: lab != nil ? parts[1] : full,
                 link: c["link"].flatMap { URL(string: $0) },
-                date: c["pubDate"].flatMap { dates.date(from: $0) }
+                date: c["pubDate"].flatMap { dates.date(from: $0) },
+                kind: c["category"]?.lowercased()
             ))
             current = nil
         } else if current != nil {
