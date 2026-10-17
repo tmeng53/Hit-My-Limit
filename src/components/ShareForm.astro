@@ -1,0 +1,301 @@
+---
+import { ACCOUNTS, OPTIONS, WINDOWS, WORK } from '../lib/reports';
+import { REPO_URL, type Lang } from '../lib/site';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+
+const text = {
+  en: {
+    h1: 'Share when you hit a usage limit',
+    lead: 'Reports are anonymous and pooled by plan. Once a plan has 20 reports, the limits page shows how long people on it usually last before hitting the limit.',
+    cliTitle: 'From your logs',
+    cliBody: 'If you use Claude Code or Codex, run this in a terminal. It reads the logs those tools already keep on your computer, finds the times you hit a limit, and shows you the report before sending it.',
+    cliMore: 'Source code',
+    formTitle: 'By hand',
+    lab: 'Lab',
+    product: 'Product',
+    plan: 'Plan',
+    window: 'Which limit',
+    windows: { '5h': '5-hour', daily: 'Daily', weekly: 'Weekly' },
+    hit: 'Hit the limit at',
+    resets: 'Limit resets at',
+    resetsHint: 'Shown in the app when you hit the limit. Used to work out when the window started.',
+    work: 'Kind of work',
+    works: { coding: 'Coding', chat: 'Chat', research: 'Research', other: 'Other' },
+    account: 'Account',
+    accounts: { own: 'My own (paid directly, or a work seat)', shared: 'Shared with other people', reseller: 'Bought from a reseller' },
+    model: 'Model',
+    tokens: 'Tokens used',
+    optional: 'optional',
+    preview: 'Hit the limit {t} after the window started.',
+    previewBad: 'The reset time must be after the hit time, and within one window of it.',
+    send: 'Send report',
+    sending: 'Sending…',
+    sent: 'Sent. Thank you.',
+    dup: 'This report was already sent.',
+    cmp: 'You hit the limit sooner than {p}% of {n} recent reports on the same plan{work}.',
+    cmpWork: ' doing the same kind of work',
+    cmpWait: 'There are {n} recent reports on this plan so far. A comparison shows up once there are 20.',
+    error: 'Could not send the report: ',
+    storedTitle: 'What is stored',
+    stored: [
+      'Lab, product, plan, which limit, and the date you hit it.',
+      'How long after the window started you hit the limit, rounded to 5 minutes. Not the clock time.',
+      'Kind of work, account type, and the model and token count if you give them.',
+      'A random id kept in this browser, so repeat reports from one person can be counted once. It is hashed before it is stored.',
+    ],
+    notStored: 'Not stored: prompts, code, file names, account details, email, time zone or IP address. Your IP address is used only to limit how many reports one address can send per day, as a hash that is deleted the next day.',
+    data: 'All reports are public as a CSV file under CC BY 4.0:',
+  },
+  zh: {
+    h1: '触发用量上限时，分享一下',
+    lead: '报告是匿名的，按方案汇总。一个方案收到 20 份报告后，额度数据页会显示该方案的用户通常用多久会触发上限。',
+    cliTitle: '从日志读取',
+    cliBody: '如果你用 Claude Code 或 Codex，在终端里运行下面的命令。它会读取这些工具已保存在你电脑上的日志，找出你触发上限的时间，并在发送前给你看报告内容。',
+    cliMore: '源代码',
+    formTitle: '手动填写',
+    lab: '公司',
+    product: '产品',
+    plan: '方案',
+    window: '哪个额度',
+    windows: { '5h': '5 小时', daily: '每日', weekly: '每周' },
+    hit: '触发上限时间',
+    resets: '额度重置时间',
+    resetsHint: '触发上限时应用里会显示。用来推算这个额度周期的开始时间。',
+    work: '用途',
+    works: { coding: '写代码', chat: '聊天', research: '研究', other: '其他' },
+    account: '账号',
+    accounts: { own: '自己的（直接付费，或公司账号）', shared: '与他人共用', reseller: '从代理商购买' },
+    model: '模型',
+    tokens: '已用 token',
+    optional: '选填',
+    preview: '额度周期开始后 {t} 触发上限。',
+    previewBad: '重置时间必须晚于触发时间，且相差不超过一个周期。',
+    send: '发送报告',
+    sending: '发送中…',
+    sent: '已发送，谢谢。',
+    dup: '这份报告之前已经发送过了。',
+    cmp: '在同一方案{work}最近的 {n} 份报告中，你比 {p}% 的人更早触发上限。',
+    cmpWork: '、同类用途',
+    cmpWait: '这个方案目前有 {n} 份近期报告，满 20 份后会显示对比。',
+    error: '发送失败：',
+    storedTitle: '会保存什么',
+    stored: [
+      '公司、产品、方案、哪个额度，以及触发上限的日期。',
+      '额度周期开始后多久触发上限，按 5 分钟取整。不保存具体时刻。',
+      '用途、账号类型，以及你填写的模型和 token 数。',
+      '一个保存在本浏览器里的随机 ID，用来识别同一个人的重复报告。保存前会做哈希处理。',
+    ],
+    notStored: '不保存：提示词、代码、文件名、账号信息、邮箱、时区或 IP 地址。IP 地址只用于限制每个地址每天能发送的报告数，以哈希形式保存，第二天删除。',
+    data: '所有报告以 CSV 文件公开，采用 CC BY 4.0 协议：',
+  },
+}[lang];
+
+const labNames = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google' };
+// Passed to the page script so product, plan and model lists follow the chosen lab.
+const options = Object.fromEntries(
+  Object.entries(OPTIONS).map(([lab, o]) => [lab, { products: o.products, plans: o.plans, models: o.models }]),
+);
+const strings = {
+  preview: text.preview, previewBad: text.previewBad, send: text.send, sending: text.sending, sent: text.sent, dup: text.dup,
+  cmp: text.cmp, cmpWork: text.cmpWork, cmpWait: text.cmpWait, error: text.error, other: lang === 'zh' ? '其他' : 'Other',
+};
+---
+<section class="intro">
+  <h1>{text.h1}</h1>
+  <p class="lead">{text.lead}</p>
+</section>
+
+<section>
+  <h2>{text.cliTitle}</h2>
+  <p>{text.cliBody}</p>
+  <pre><code>npx hitmylimit</code></pre>
+  <p class="meta"><a href={`${REPO_URL}/tree/main/cli`}>{text.cliMore} ↗</a></p>
+</section>
+
+<section>
+  <h2>{text.formTitle}</h2>
+  <form id="report" novalidate>
+    <label class="field"><span>{text.lab}</span>
+      <select name="lab">{Object.entries(labNames).map(([k, v]) => <option value={k}>{v}</option>)}</select>
+    </label>
+    <label class="field"><span>{text.product}</span><select name="product"></select></label>
+    <label class="field"><span>{text.plan}</span><select name="plan"></select></label>
+    <label class="field"><span>{text.window}</span>
+      <select name="window">{Object.keys(WINDOWS).map((w) => <option value={w}>{text.windows[w as keyof typeof WINDOWS]}</option>)}</select>
+    </label>
+    <label class="field"><span>{text.hit}</span><input type="datetime-local" name="hit" required /></label>
+    <label class="field"><span>{text.resets}</span>
+      <span class="stack"><input type="datetime-local" name="resets" required /><small>{text.resetsHint}</small></span>
+    </label>
+    <label class="field"><span>{text.work}</span>
+      <select name="work">{WORK.map((w) => <option value={w}>{text.works[w]}</option>)}</select>
+    </label>
+    <label class="field"><span>{text.account}</span>
+      <select name="account">{ACCOUNTS.map((a) => <option value={a}>{text.accounts[a]}</option>)}</select>
+    </label>
+    <label class="field"><span>{text.model} <small>{text.optional}</small></span>
+      <input name="model" list="models" maxlength="40" autocomplete="off" /><datalist id="models"></datalist>
+    </label>
+    <label class="field"><span>{text.tokens} <small>{text.optional}</small></span>
+      <input name="tokens" inputmode="numeric" pattern="[0-9]*" maxlength="15" autocomplete="off" />
+    </label>
+    <div class="after">
+      <p class="preview" aria-live="polite"></p>
+      <button type="submit">{text.send}</button>
+      <p class="result" aria-live="polite"></p>
+    </div>
+  </form>
+</section>
+
+<section class="stored">
+  <h2>{text.storedTitle}</h2>
+  <ul>{text.stored.map((x) => <li>{x}</li>)}</ul>
+  <p>{text.notStored}</p>
+  <p>{text.data} <a href="/data/reports.csv">/data/reports.csv</a></p>
+</section>
+
+<script define:vars={{ options, strings, windows: WINDOWS }}>
+  const form = document.getElementById('report');
+  const el = (name) => form.elements.namedItem(name);
+  const preview = form.querySelector('.preview');
+  const result = form.querySelector('.result');
+  const button = form.querySelector('button');
+
+  function fill(select, entries) {
+    select.replaceChildren(...entries.map(([v, label]) => new Option(label, v)));
+  }
+  function onLab() {
+    const o = options[el('lab').value];
+    fill(el('product'), Object.entries(o.products));
+    fill(el('plan'), Object.entries(o.plans));
+    document.getElementById('models').replaceChildren(...o.models.map((m) => new Option(m)));
+  }
+  el('lab').addEventListener('change', onLab);
+  onLab();
+
+  // Local time without seconds, as datetime-local wants it.
+  const local = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  el('hit').value = local(new Date());
+
+  function minutes() {
+    const hit = Date.parse(el('hit').value);
+    const resets = Date.parse(el('resets').value);
+    if (Number.isNaN(hit) || Number.isNaN(resets)) return null;
+    const length = windows[el('window').value];
+    const m = Math.round((hit - (resets - length * 60000)) / 60000);
+    return m > 0 && m <= length ? m : 0;
+  }
+  function duration(m) {
+    const r = Math.round(m / 5) * 5 || 5;
+    const d = Math.floor(r / 1440), h = Math.floor((r % 1440) / 60), mm = r % 60;
+    return [d && `${d}d`, h && `${h}h`, mm && `${mm}m`].filter(Boolean).join(' ');
+  }
+  function onTime() {
+    const m = minutes();
+    preview.textContent = m === null ? '' : m === 0 ? strings.previewBad : strings.preview.replace('{t}', duration(m));
+  }
+  for (const n of ['hit', 'resets', 'window']) el(n).addEventListener('input', onTime);
+
+  function clientId() {
+    try {
+      let id = localStorage.getItem('hitmylimit-id');
+      if (!id) {
+        id = crypto.randomUUID().replace(/-/g, '');
+        localStorage.setItem('hitmylimit-id', id);
+      }
+      return id;
+    } catch {
+      return crypto.randomUUID().replace(/-/g, '');
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    result.textContent = '';
+    const m = minutes();
+    if (!m) {
+      preview.textContent = strings.previewBad;
+      return;
+    }
+    const hit = new Date(Date.parse(el('hit').value));
+    const report = {
+      lab: el('lab').value,
+      product: el('product').value,
+      plan: el('plan').value,
+      window: el('window').value,
+      minutes_to_limit: m,
+      hit_on: hit.toISOString().slice(0, 10),
+      work: el('work').value,
+      account: el('account').value,
+      model: el('model').value.trim() || null,
+      tokens: { total: el('tokens').value.replace(/[^0-9]/g, '') || null },
+      source: 'form',
+      client_id: clientId(),
+    };
+    button.disabled = true;
+    button.textContent = strings.sending;
+    try {
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(report),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      const c = body.comparison;
+      const lines = [body.duplicate ? strings.dup : strings.sent];
+      if (c && c.percent !== null) {
+        lines.push(strings.cmp.replace('{p}', c.percent).replace('{n}', c.n).replace('{work}', c.sameWork ? strings.cmpWork : ''));
+      } else if (c) {
+        lines.push(strings.cmpWait.replace('{n}', c.n));
+      }
+      result.textContent = lines.join(' ');
+    } catch (err) {
+      result.textContent = strings.error + err.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = strings.send;
+    }
+  });
+</script>
+
+<style>
+  .intro { padding: 48px 0 8px; }
+  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 16px; max-width: 30em; }
+  .lead { margin: 0; max-width: 62ch; color: var(--muted); }
+  h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  section + section { margin-top: 48px; }
+  section > p { max-width: 62ch; margin: 0 0 12px; }
+  .meta { font-size: var(--s-sm); color: var(--muted); }
+  pre { margin: 0 0 12px; padding: 12px 16px; border: 1px solid var(--line); background: var(--hover); font: inherit; max-width: 440px; }
+
+  .field { display: grid; grid-template-columns: 22ch minmax(0, 440px); gap: 16px; align-items: baseline; padding: 8px 0; }
+  .field > span:first-child { color: var(--muted); }
+  .field small, .stack small { color: var(--muted); font-size: var(--s-sm); }
+  .stack { display: grid; gap: 4px; }
+  select, input { width: 100%; height: 36px; padding: 0 8px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 0; }
+  select:focus, input:focus { outline: none; border-color: var(--fg); }
+  select option { background: var(--bg); color: var(--fg); }
+  .after { display: grid; grid-template-columns: 22ch minmax(0, 440px); column-gap: 16px; }
+  .after > * { grid-column: 2; justify-self: start; }
+  .preview, .result { margin: 8px 0; min-height: 1.6em; }
+  .preview { color: var(--muted); font-size: var(--s-sm); }
+  button { height: 40px; padding: 0 16px; font: inherit; border: 0; border-radius: 0; background: var(--fg); color: var(--bg); cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: default; }
+
+  .stored ul { margin: 0 0 12px; padding-left: 2ch; max-width: 62ch; }
+  .stored li { margin-bottom: 4px; }
+  .stored p { color: var(--muted); font-size: var(--s-sm); }
+  .stored a { text-decoration: underline; text-underline-offset: 3px; }
+
+  @media (max-width: 640px) {
+    .intro { padding: 24px 0 0; }
+    .field { grid-template-columns: 1fr; gap: 4px; }
+    .after { grid-template-columns: 1fr; }
+    .after > * { grid-column: 1; }
+  }
+</style>

@@ -5,10 +5,16 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test": "node --test test/*.test.ts && npm --prefix cli test"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",
-    "astro": "^7.4.0"
+    "@astrojs/vercel": "^11.0.15",
+    "astro": "^7.4.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

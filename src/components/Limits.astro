@@ -1,0 +1,148 @@
+---
+import { dbConfigured, groupStats, type GroupStats } from '../lib/db';
+import { labelFor, MIN_GROUP, RECENT_DAYS } from '../lib/reports';
+import { LABS, type Lang } from '../lib/site';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+
+const text = {
+  en: {
+    h1: 'How long people last before hitting a usage limit',
+    lead: `Medians from reports sent in the last ${RECENT_DAYS} days, by plan and limit. A plan's numbers appear once it has ${MIN_GROUP} reports. These are self-reported, not official limits.`,
+    own: 'Own accounts',
+    other: 'Shared and resold accounts',
+    otherLead: 'Kept separate because these accounts can have different limits or several people using them.',
+    cols: ['Lab', 'Plan', 'Limit', 'Reports', 'Median time to limit', 'Median tokens'],
+    windows: { '5h': '5-hour', daily: 'daily', weekly: 'weekly' } as Record<string, string>,
+    progress: (n: number) => `${n} of ${MIN_GROUP} reports`,
+    empty: 'No reports yet.',
+    share: 'Share a report',
+    closed: 'Reports are not open yet.',
+    tokensNote: 'Token counts come from the command-line tool, so they cover Claude Code and Codex use only, not the chat apps.',
+    data: 'Download all reports (CSV, CC BY 4.0)',
+  },
+  zh: {
+    h1: '大家用多久会触发用量上限',
+    lead: `根据最近 ${RECENT_DAYS} 天收到的报告，按方案和额度计算的中位数。一个方案收到 ${MIN_GROUP} 份报告后才会显示数据。数据由用户自行报告，不是官方额度。`,
+    own: '自己的账号',
+    other: '共用和代理账号',
+    otherLead: '单独统计，因为这些账号的额度可能不同，或有多人同时使用。',
+    cols: ['公司', '方案', '额度', '报告数', '触发上限用时（中位数）', 'token（中位数）'],
+    windows: { '5h': '5 小时', daily: '每日', weekly: '每周' } as Record<string, string>,
+    progress: (n: number) => `${n} / ${MIN_GROUP} 份报告`,
+    empty: '还没有报告。',
+    share: '分享报告',
+    closed: '报告功能尚未开放。',
+    tokensNote: 'token 数来自命令行工具，只包括 Claude Code 和 Codex 的用量，不含聊天应用。',
+    data: '下载全部报告（CSV，CC BY 4.0）',
+  },
+}[lang];
+
+let groups: GroupStats[] = [];
+let failed = false;
+if (dbConfigured()) {
+  try {
+    groups = await groupStats();
+  } catch (e) {
+    console.error(e);
+    failed = true;
+  }
+}
+const own = groups.filter((g) => g.account === 'own');
+const other = groups.filter((g) => g.account !== 'own');
+const prefix = lang === 'zh' ? '/zh' : '';
+
+function duration(m: number) {
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return [d && `${d}d`, h && `${h}h`, mm && `${mm}m`].filter(Boolean).join(' ') || '0m';
+}
+function tokens(n: number) {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
+  return String(n);
+}
+const labName = (lab: string) => (LABS as Record<string, { en: string; zh: string }>)[lab]?.[lang] ?? lab;
+---
+<section class="intro">
+  <h1>{text.h1}</h1>
+  <p class="lead">{text.lead}</p>
+</section>
+
+{!dbConfigured() || failed ? (
+  <section><p>{text.closed}</p></section>
+) : (
+  [{ title: text.own, rows: own, lead: null }, { title: text.other, rows: other, lead: text.otherLead }]
+    .filter((s, i) => i === 0 || s.rows.length > 0)
+    .map((s) => (
+      <section>
+        <h2>{s.title}</h2>
+        {s.lead && <p class="meta">{s.lead}</p>}
+        {s.rows.length === 0 ? (
+          <p>{text.empty} <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
+        ) : (
+          <table>
+            <thead><tr>{text.cols.map((c) => <th>{c}</th>)}</tr></thead>
+            <tbody>
+              {s.rows.map((g) => (
+                <tr>
+                  <td class="muted">{labName(g.lab)}</td>
+                  <td>{labelFor(g.lab, 'plans', g.plan)}</td>
+                  <td>{text.windows[g.window] ?? g.window}</td>
+                  <td class="num">{g.reports}</td>
+                  {g.median_minutes === null
+                    ? <td class="muted" colspan="2">{text.progress(g.reports)}</td>
+                    : <>
+                        <td class="num">{duration(g.median_minutes)}</td>
+                        <td class="num">{g.median_tokens === null ? '–' : tokens(g.median_tokens)}</td>
+                      </>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    ))
+)}
+
+<section class="notes">
+  <p>{text.tokensNote}</p>
+  <p><a class="u" href="/data/reports.csv">{text.data}</a> · <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
+</section>
+
+<style>
+  .intro { padding: 48px 0 8px; }
+  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 16px; max-width: 30em; }
+  .lead { margin: 0; max-width: 62ch; color: var(--muted); }
+  h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  section + section { margin-top: 48px; }
+  .meta { font-size: var(--s-sm); color: var(--muted); margin: 8px 0; }
+  section > p { margin: 12px 0 0; }
+  .u { text-decoration: underline; text-underline-offset: 3px; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th:nth-child(1) { width: 14%; }
+  th:nth-child(2), th:nth-child(3), th:nth-child(4) { width: 12%; }
+  th:nth-child(5) { width: 28%; }
+  th { text-align: left; font-weight: 400; color: var(--muted); font-size: var(--s-sm); padding: 8px 16px 8px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); }
+  tr:hover td { background: var(--hover); }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+  .notes p { font-size: var(--s-sm); color: var(--muted); margin: 0 0 8px; max-width: 62ch; }
+  @media (max-width: 640px) {
+    .intro { padding: 24px 0 0; }
+    table, tbody, tr, td { display: block; }
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 1fr auto; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    td { padding: 0; border: 0; }
+    td:nth-child(1) { grid-column: 1; font-size: var(--s-sm); }
+    td:nth-child(2) { grid-column: 1; }
+    td:nth-child(3) { grid-column: 1; color: var(--muted); font-size: var(--s-sm); }
+    td:nth-child(4) { display: none; }
+    td:nth-child(n+5) { grid-column: 2; grid-row: 2; text-align: right; }
+    td:nth-child(6) { grid-row: 3; color: var(--muted); font-size: var(--s-sm); }
+  }
+</style>

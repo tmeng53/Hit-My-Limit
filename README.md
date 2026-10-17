@@ -1,6 +1,7 @@
 # Hit My Limit
 
-A public log of every change to AI subscription usage limits, and to how labs display them, with a date and a source.
+A public log of every change to AI subscription usage limits, and to how labs display them, with a date and a source,
+plus anonymous reports of when people hit those limits.
 Covers Anthropic (Claude, Claude Code), OpenAI (ChatGPT, Codex) and Google (Gemini, Gemini CLI). English at `/`, Chinese at `/zh/`.
 
 ## How entries get added
@@ -17,16 +18,38 @@ Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The
 - `/rss.xml` (English), `/zh/rss.xml` (Chinese), `/rss/anthropic.xml`, `/rss/openai.xml`, `/rss/google.xml`
 - Email alerts through Buttondown (username set in `src/lib/site.ts`)
 
+## Usage reports
+
+People share when they hit a limit through the form at `/share` or the command-line tool in [`cli/`](cli/)
+(`npx hitmylimit`, reads local Claude Code and Codex logs). `/limits` shows medians per plan and limit over the
+last 30 days, once a group has 20 reports. Reports from shared and resold accounts are shown separately.
+All reports are downloadable at `/data/reports.csv`.
+
+A report holds lab, product, plan, which limit, the date, minutes from window start to the limit (rounded to 5),
+kind of work, account type, and optionally model, token counts and tool version. It does not hold prompts, code,
+account details, time zone or IP address. IP addresses are used only for a daily rate limit, stored as a salted
+hash and deleted the next day. The contributor id is random and hashed before it is stored.
+
+- `POST /api/reports` takes one report as JSON. Validation is in `src/lib/reports.ts`.
+- Storage is Postgres (`DATABASE_URL` or `POSTGRES_URL`). Tables are created on first use; see `src/lib/db.ts`.
+- To remove a bad report: `update reports set hidden = true where id = ...`.
+
 ## Develop
 
 ```sh
 npm install
 npm run dev     # http://localhost:4321
-npm run build   # static site in dist/
+npm test        # report validation and command-line tool tests
+npm run build
 ```
 
-Deployed on Vercel as a static Astro site.
+Without `DATABASE_URL`, the change log works and the report pages say reports are not open yet. To try reports
+locally, point `DATABASE_URL` at any Postgres database.
+
+Deployed on Vercel: pages are static, and the report API, `/limits` and the CSV run as Vercel Functions.
 
 ## License
 
-Code: [MIT](LICENSE). Change log data: [CC BY 4.0](LICENSE-DATA.md).
+Code: [MIT](LICENSE). Change log and report data: [CC BY 4.0](LICENSE-DATA.md).
+
+Not affiliated with or endorsed by Anthropic, OpenAI or Google. Product and plan names are used only to identify them.

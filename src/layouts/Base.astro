@@ -4,9 +4,20 @@ import { REPO_URL, SUBMIT_URL, t, type Lang } from '../lib/site';
 interface Props {
   lang: Lang;
   title?: string;
+  description?: string;
+  // Path of this page without the /zh prefix, e.g. '/share', so the language link goes to the same page.
+  path?: string;
 }
-const { lang, title } = Astro.props;
+const { lang, title, description, path = '/' } = Astro.props;
 const s = t[lang];
+const enHref = path;
+const zhHref = path === '/' ? '/zh/' : `/zh${path}`;
+const prefix = lang === 'zh' ? '/zh' : '';
+const nav = [
+  { href: `${prefix}/`, label: s.navLog, path: '/' },
+  { href: `${prefix}/limits`, label: s.navLimits, path: '/limits' },
+  { href: `${prefix}/share`, label: s.navShare, path: '/share' },
+];
 const pageTitle = title ? `${title} · Hit My Limit` : `Hit My Limit · ${s.tagline}`;
 const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
 ---
@@ -16,10 +27,10 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
-    <meta name="description" content={s.lead} />
+    <meta name="description" content={description ?? s.lead} />
     <link rel="alternate" type="application/rss+xml" title="Hit My Limit" href={rss} />
-    <link rel="alternate" hreflang="en" href="/" />
-    <link rel="alternate" hreflang="zh-CN" href="/zh/" />
+    <link rel="alternate" hreflang="en" href={enHref} />
+    <link rel="alternate" hreflang="zh-CN" href={zhHref} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,8 +38,11 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
   </head>
   <body>
     <header>
-      <a class="name" href={lang === 'zh' ? '/zh/' : '/'}>hitmylimit</a>
-      <a href={s.otherHref} lang={lang === 'zh' ? 'en' : 'zh-CN'}>{s.other}</a>
+      <a class="name" href={`${prefix}/`}>hitmylimit</a>
+      <nav>
+        {nav.map((n) => <a href={n.href} aria-current={n.path === path ? 'page' : undefined}>{n.label}</a>)}
+        <a class="lang" href={lang === 'zh' ? enHref : zhHref} lang={lang === 'zh' ? 'en' : 'zh-CN'}>{s.other}</a>
+      </nav>
     </header>
     <main>
       <slot />
@@ -39,6 +53,7 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
       <a href={REPO_URL}>GitHub</a>
       <span>{s.codeLicense}</span>
       <a href="https://creativecommons.org/licenses/by/4.0/">{s.dataLicense}</a>
+      <span>{s.notAffiliated}</span>
     </footer>
   </body>
 </html>
@@ -82,11 +97,14 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
   a:hover { text-decoration: underline; text-underline-offset: 3px; }
   header, main, footer { max-width: 960px; margin: 0 auto; padding: 0 24px; }
   header { display: flex; justify-content: space-between; align-items: center; height: 56px; font-size: var(--s-sm); }
-  header a:last-child { color: var(--muted); }
+  header nav { display: flex; gap: 20px; }
+  header nav a { color: var(--muted); }
+  header nav a[aria-current='page'] { color: var(--fg); }
   .name { font-weight: 500; font-size: var(--s-md); }
   footer { display: flex; gap: 24px; flex-wrap: wrap; padding-top: 48px; padding-bottom: 48px; font-size: var(--s-sm); color: var(--muted); }
   @media (max-width: 640px) {
     header, main, footer { padding: 0 16px; }
+    header nav { gap: 14px; }
     footer { gap: 8px 20px; padding-top: 40px; padding-bottom: 40px; }
   }
 </style>
