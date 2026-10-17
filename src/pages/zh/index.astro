@@ -1,0 +1,10 @@
+---
+import Base from '../../layouts/Base.astro';
+import ChangeLog from '../../components/ChangeLog.astro';
+import { getChanges } from '../../lib/site';
+
+const changes = await getChanges();
+---
+<Base lang="zh">
+  <ChangeLog lang="zh" changes={changes} />
+</Base>
