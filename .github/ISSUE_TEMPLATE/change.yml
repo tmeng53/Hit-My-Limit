@@ -1,0 +1,71 @@
+name: Suggest a limit change
+description: Tell us about a change to an AI plan's usage limits or how usage is shown.
+title: "[Change] "
+labels: ["submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! A bot checks the source link and drafts the entry. It goes live once a maintainer approves it.
+        中文提交也可以。
+  - type: dropdown
+    id: lab
+    attributes:
+      label: Lab
+      options:
+        - Anthropic
+        - OpenAI
+        - Google
+    validations:
+      required: true
+  - type: input
+    id: product
+    attributes:
+      label: Product
+      placeholder: Claude Code, ChatGPT, Codex, Gemini CLI…
+    validations:
+      required: true
+  - type: input
+    id: plans
+    attributes:
+      label: Plans affected
+      placeholder: Pro, Max 5x, Plus…
+  - type: input
+    id: date
+    attributes:
+      label: Date of the change
+      description: YYYY-MM-DD. Your best guess is fine.
+      placeholder: "2026-10-10"
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      options:
+        - Usage limit changed
+        - How usage is displayed changed
+    validations:
+      required: true
+  - type: input
+    id: title
+    attributes:
+      label: What changed, in one line
+      placeholder: Codex weekly limit lowered for Plus
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Details
+      description: One or two sentences. Facts only, please.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source link
+      description: An official post, release notes, press article, or a public report (GitHub issue, forum thread).
+      placeholder: https://
+    validations:
+      required: true

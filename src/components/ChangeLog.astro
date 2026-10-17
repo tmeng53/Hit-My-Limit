@@ -1,0 +1,84 @@
+---
+import { BUTTONDOWN_USER, LABS, SUBMIT_URL, formatDate, summaryFor, t, titleFor, type Change, type Lang } from '../lib/site';
+
+interface Props {
+  lang: Lang;
+  changes: Change[];
+}
+const { lang, changes } = Astro.props;
+const s = t[lang];
+---
+<section class="intro">
+  <h1>{s.tagline}</h1>
+  <p>{s.lead}</p>
+  <div class="actions">
+    <form class="signup" action={`https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USER}`} method="post" target="_blank">
+      <label for="email" class="sr-only">{s.alerts}</label>
+      <input id="email" type="email" name="email" required placeholder={s.emailPlaceholder} />
+      <input type="hidden" name="tag" value={lang} />
+      <button type="submit">{s.subscribe}</button>
+    </form>
+    <a class="submit" href={SUBMIT_URL}>{s.submit}</a>
+  </div>
+</section>
+
+<div class="filters" role="group" aria-label="Lab">
+  <button type="button" data-filter="all" aria-pressed="true">{s.all}</button>
+  {Object.entries(LABS).map(([key, names]) => (
+    <button type="button" data-filter={key} aria-pressed="false">{names[lang]}</button>
+  ))}
+</div>
+
+<ol class="log">
+  {changes.map((c) => (
+    <li data-lab={c.data.lab} id={c.id}>
+      <div class="meta">
+        <time datetime={c.data.date.toISOString().slice(0, 10)}>{formatDate(c.data.date, lang)}</time>
+        <span class="chip">{LABS[c.data.lab][lang]} · {c.data.product}</span>
+        <span class="chip">{c.data.kind === 'limit' ? s.limit : s.display}</span>
+        {c.data.status === 'unconfirmed' && <span class="chip warn" title={s.unconfirmedHint}>{s.unconfirmed}</span>}
+      </div>
+      <h2><a href={`#${c.id}`}>{titleFor(c, lang)}</a></h2>
+      <p>{summaryFor(c, lang)}</p>
+      <p class="source">
+        {c.data.plans.length > 0 && <span>{c.data.plans.join(', ')} · </span>}
+        {s.source}: <a href={c.data.source_url} rel="nofollow noopener">{c.data.source_name}</a>
+        <span> ({s[c.data.date_kind]})</span>
+      </p>
+    </li>
+  ))}
+</ol>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  const items = document.querySelectorAll<HTMLElement>('.log > li');
+  for (const b of buttons) {
+    b.addEventListener('click', () => {
+      const f = b.dataset.filter;
+      for (const x of buttons) x.setAttribute('aria-pressed', String(x === b));
+      for (const li of items) li.hidden = f !== 'all' && li.dataset.lab !== f;
+    });
+  }
+</script>
+
+<style>
+  .intro h1 { font-size: 28px; line-height: 1.25; margin: 40px 0 8px; letter-spacing: -0.02em; }
+  .intro p { color: var(--muted); margin: 0 0 20px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .signup { display: flex; gap: 8px; flex: 1 1 320px; }
+  .signup input[type='email'] { flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; }
+  button, .submit { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); color: inherit; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .signup button { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0 8px; }
+  .filters button[aria-pressed='true'] { border-color: var(--fg); }
+  .log { list-style: none; padding: 0; margin: 0; }
+  .log li { padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .chip { background: var(--chip); padding: 1px 8px; border-radius: 999px; }
+  .chip.warn { color: var(--warn); }
+  h2 { font-size: 18px; margin: 8px 0 4px; line-height: 1.35; }
+  h2 a { text-decoration: none; }
+  .log p { margin: 0; }
+  .source { font-size: 13px; color: var(--muted); margin-top: 6px !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
