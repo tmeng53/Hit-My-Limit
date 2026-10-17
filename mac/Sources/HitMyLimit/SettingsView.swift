@@ -1,46 +1,66 @@
 import SwiftUI
 
+// Settings, shown inside the panel in place of the usage view.
 struct SettingsView: View {
     @ObservedObject var model: Model
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Anthropic: Claude Code", isOn: lab("anthropic"))
-                Toggle("OpenAI: Codex", isOn: lab("openai"))
-                Toggle("Google: Gemini", isOn: lab("google"))
-            } header: {
-                Text("Providers")
-            } footer: {
-                Text("Turned-off providers are hidden in the panel and send no notifications. For Gemini, only limit changes and free resets for now.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            section("Providers") {
+                toggle("Anthropic: Claude Code", lab("anthropic"))
+                toggle("OpenAI: Codex", lab("openai"))
+                toggle("Google: Gemini", lab("google"))
+                note("Turned-off providers are hidden and send no notifications. Gemini: limit changes and free resets only, for now.")
             }
-            Section("Notifications") {
-                Toggle("When a lab changes its usage limits", isOn: $model.notifyChanges)
-                Toggle("When a lab gives out a free limit reset", isOn: $model.notifyResets)
-                Toggle("At 90% of a limit", isOn: $model.notifyNearLimit)
+            section("Notifications") {
+                toggle("Limit changes", $model.notifyChanges)
+                toggle("Free limit resets", $model.notifyResets)
+                toggle("At 90% of a limit", $model.notifyNearLimit)
             }
-            Section {
-                Toggle("Open at login", isOn: $model.openAtLogin)
+            section("General") {
+                toggle("Open at login", $model.openAtLogin)
             }
-            Section("Privacy") {
-                LabeledContent("Reads") {
-                    Text("Claude Code and Codex logs").foregroundStyle(.secondary)
-                        .help("~/.claude/projects (or ~/.config/claude/projects) and ~/.codex/sessions")
-                }
-                LabeledContent("Never reads") { Text("logins, API keys, browser cookies").foregroundStyle(.secondary) }
-                LabeledContent("Where") { Text("On this Mac. Nothing leaves it unless you share.").foregroundStyle(.secondary) }
+            section("Privacy") {
+                row("Reads", "Claude Code and Codex logs")
+                    .help("~/.claude/projects (or ~/.config/claude/projects) and ~/.codex/sessions")
+                row("Never reads", "logins, API keys, cookies")
+                row("Where", "on this Mac only")
+                note("Nothing leaves this Mac unless you share a limit hit.")
             }
+            Divider().padding(.top, 16)
             HStack {
                 Button("Limits by plan") { Links.open(Links.limits) }
                 Spacer()
                 Button("Quit Hit My Limit") { NSApp.terminate(nil) }
             }
-            .padding(.horizontal, 10)
+            .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
+            .padding(.top, 12)
         }
-        .formStyle(.grouped)
-        .frame(width: 420)
-        .fixedSize()
+    }
+
+    private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(title)
+            content()
+        }
+        .padding(.top, 16)
+    }
+
+    private func toggle(_ title: String, _ on: Binding<Bool>) -> some View {
+        Toggle(isOn: on) { Text(title).font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading) }
+            .toggleStyle(.switch).controlSize(.mini)
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title).font(.system(size: 13))
+            Spacer()
+            Text(value).font(.system(size: 12)).foregroundStyle(.secondary)
+        }
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
 
     private func lab(_ key: String) -> Binding<Bool> {

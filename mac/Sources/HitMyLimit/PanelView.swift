@@ -6,6 +6,7 @@ struct PanelView: View {
     @Environment(\.openWindow) private var openWindow
     // The day under the pointer in the limit-hit strip; its hits show below the strip.
     @State var hoverDay: Int? = nil
+    @State var showSettings = false
 
     private struct Tool {
         let percent: Double
@@ -14,7 +15,18 @@ struct PanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header.padding(.bottom, 16)
+            header.padding(.bottom, showSettings ? 0 : 16)
+            if showSettings {
+                SettingsView(model: model)
+            } else {
+                usage
+            }
+        }
+        .padding(16)
+        .frame(width: 340)
+    }
+
+    @ViewBuilder private var usage: some View {
             if let e = model.error {
                 Label(e, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 12)).foregroundStyle(Look.amber)
@@ -37,26 +49,34 @@ struct PanelView: View {
             }
             news
             footer
-        }
-        .padding(16)
-        .frame(width: 340)
     }
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text("Hit My Limit").font(.system(size: 15, weight: .semibold))
-            Spacer()
-            if model.loading { ProgressView().controlSize(.mini) }
-            if let s = model.status {
-                Button { Task { await model.refresh(); await model.refreshFeed() } } label: {
-                    Text(Format.when(date(s.generated_at))).font(.system(size: 12)).monospacedDigit()
+            if showSettings {
+                Button { showSettings = false } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold))
+                        Text("Settings").font(.system(size: 15, weight: .semibold))
+                    }
                 }
-                .buttonStyle(.plain).foregroundStyle(.secondary).help("Last updated. Click to refresh.")
+                .buttonStyle(.plain).help("Back")
+                Spacer()
+            } else {
+                Text("Hit My Limit").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                if model.loading { ProgressView().controlSize(.mini) }
+                if let s = model.status {
+                    Button { Task { await model.refresh(); await model.refreshFeed() } } label: {
+                        Text(Format.when(date(s.generated_at))).font(.system(size: 12)).monospacedDigit()
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Last updated. Click to refresh.")
+                }
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape").font(.system(size: 13, weight: .medium))
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary).help("Settings")
             }
-            Button { NSApp.activate(ignoringOtherApps: true); openWindow(id: "settings") } label: {
-                Image(systemName: "gearshape").font(.system(size: 13, weight: .medium))
-            }
-            .buttonStyle(.plain).foregroundStyle(.secondary).help("Settings")
         }
     }
 
@@ -253,19 +273,31 @@ struct PanelView: View {
         }
     }
 
-    @ViewBuilder private var footer: some View {
+    // The site link is always there; Share shows up when there are new limit hits.
+    private var footer: some View {
         let n = model.unsent.count
-        if n > 0 {
+        return VStack(spacing: 0) {
             Divider().padding(.top, 14)
-            HStack {
-                Text(n == 1 ? "1 new limit hit" : "\(n) new limit hits").font(.system(size: 13)).foregroundStyle(.secondary)
-                Spacer()
-                Button("Share") {
-                    NSApp.activate(ignoringOtherApps: true)
-                    openWindow(id: "share")
+            HStack(spacing: 10) {
+                Button { Links.open(Links.site) } label: {
+                    HStack(spacing: 3) {
+                        Text("hitmylimit.com")
+                        Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
+                    }
                 }
-                .inkButton()
+                .buttonStyle(.plain).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
+                .help("Limits by plan and the full change log")
+                Spacer()
+                if n > 0 {
+                    Text(n == 1 ? "1 new hit" : "\(n) new hits").font(.system(size: 13)).foregroundStyle(.secondary)
+                    Button("Share") {
+                        NSApp.activate(ignoringOtherApps: true)
+                        openWindow(id: "share")
+                    }
+                    .inkButton()
+                }
             }
+            .frame(minHeight: 28)
             .padding(.top, 12)
         }
     }

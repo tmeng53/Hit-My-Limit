@@ -102,7 +102,10 @@ enum Preview {
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
         let sent = window(ShareView(model: model, sampleSent: sampleSent), title: "Share limit hits")
         sent.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 10))
-        let settings = window(SettingsView(model: model), title: "Settings")
+        let settings = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, showSettings: true)
+        }.fixedSize(), title: "Panel, settings")
         settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
