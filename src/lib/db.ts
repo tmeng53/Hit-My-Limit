@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import pg from 'pg';
-import { MIN_GROUP, RECENT_DAYS, type Report } from './reports';
+import { BIN_MINUTES, MIN_GROUP, RECENT_DAYS, WINDOWS, type Report } from './reports';
 
 // Vercel's Neon and Supabase integrations set one of these.
 const URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
@@ -120,6 +120,11 @@ export interface Comparison {
   // How many recent reports the comparison is based on, and whether it is narrowed to the same kind of work.
   n: number;
   sameWork: boolean;
+  // For groups of at least MIN_GROUP: the group's median minutes to the limit, and report counts per bin of
+  // bin_minutes from 0 up to the window length.
+  median_minutes?: number;
+  bin_minutes?: number;
+  bins?: number[];
 }
 
 // How this report compares with others on the same plan and limit, preferring the same kind of work.
@@ -128,18 +133,25 @@ export async function compare(r: Report): Promise<Comparison> {
   const run = async (sameWork: boolean) => {
     const { rows } = await p.query(
       `select count(*)::int as n,
-              count(*) filter (where minutes_to_limit > $5)::int as longer
+              count(*) filter (where minutes_to_limit > $5)::int as longer,
+              percentile_cont(0.5) within group (order by minutes_to_limit) as median,
+              array_agg(minutes_to_limit) as minutes
        from reports
        where not hidden and account = 'own' and lab = $1 and plan = $2 and limit_window = $3
          and hit_on > current_date - $4::int and contributor <> $6
          ${sameWork ? 'and work = $7' : ''}`,
       [r.lab, r.plan, r.window, RECENT_DAYS, r.minutes_to_limit, sha(r.client_id), ...(sameWork ? [r.work] : [])],
     );
-    return rows[0] as { n: number; longer: number };
+    return rows[0] as { n: number; longer: number; median: number | null; minutes: number[] | null };
   };
   for (const sameWork of r.work ? [true, false] : [false]) {
-    const { n, longer } = await run(sameWork);
-    if (n >= MIN_GROUP) return { percent: Math.round((100 * longer) / n), n, sameWork };
+    const { n, longer, median, minutes } = await run(sameWork);
+    if (n >= MIN_GROUP) {
+      const bin = BIN_MINUTES[r.window];
+      const bins = new Array<number>(Math.ceil(WINDOWS[r.window] / bin)).fill(0);
+      for (const m of minutes ?? []) bins[Math.min(bins.length - 1, Math.floor(m / bin))]++;
+      return { percent: Math.round((100 * longer) / n), n, sameWork, median_minutes: Math.round(median!), bin_minutes: bin, bins };
+    }
   }
   const { n } = await run(false);
   return { percent: null, n, sameWork: false };

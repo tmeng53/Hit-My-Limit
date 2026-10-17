@@ -32,6 +32,9 @@ account details, time zone or IP address. IP addresses are used only for a daily
 hash and deleted the next day. The contributor id is random and hashed before it is stored.
 
 - `POST /api/reports` takes one report as JSON. Validation is in `src/lib/reports.ts`.
+  The response includes `comparison`: how many other recent reports on the same plan and limit lasted longer
+  (`percent`, `n`). Once the group has 20 reports it also has `median_minutes` and a histogram of minutes to
+  the limit: `bin_minutes` (15 for 5h, 60 daily, 360 weekly, 1440 monthly) and `bins`, counts from 0 to the window length.
 - Storage is Postgres (`DATABASE_URL` or `POSTGRES_URL`). Tables are created on first use; see `src/lib/db.ts`.
 - To remove a bad report: `update reports set hidden = true where id = ...`.
 
