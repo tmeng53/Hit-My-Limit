@@ -47,29 +47,28 @@ jobs:
           name: HitMyLimit-mac
           path: mac/dist/*.zip
 
-      # Screenshots of the panel and the share window with sample data, for reviewing the design.
+      # Screenshots of the panel and the share window with sample data, for reviewing the design. They go to
+      # the ci-screenshots branch, which holds only the latest set.
       - name: Screenshots
         if: github.event_name == 'pull_request'
         run: |
           APP="mac/dist/Hit My Limit.app/Contents/MacOS/HitMyLimit"
+          mkdir -p shots
           for mode in light dark; do
-            HITMYLIMIT_PREVIEW=1 HITMYLIMIT_APPEARANCE=$mode "$APP" &
+            rm -f /tmp/hml-windows.txt
+            HITMYLIMIT_PREVIEW=1 HITMYLIMIT_APPEARANCE=$mode HITMYLIMIT_PREVIEW_WINDOWS=/tmp/hml-windows.txt "$APP" &
             PID=$!
             sleep 8
-            screencapture -x "mac/dist/preview-$mode.png"
+            cat /tmp/hml-windows.txt
+            while read -r name id; do screencapture -x -o -l"$id" "shots/$name-$mode.png"; done < /tmp/hml-windows.txt
+            screencapture -x "shots/screen-$mode.png"
+            sips -Z 1400 "shots/screen-$mode.png" >/dev/null
             kill $PID
             sleep 1
           done
-
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'pull_request'
-        with:
-          name: screenshots
-          path: mac/dist/*.png
-          if-no-files-found: ignore
-
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/mac-v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" mac/dist/*.zip --title "Mac app ${GITHUB_REF_NAME#mac-v}" --notes "Menu bar app for macOS 13 and later."
+          ls -la shots
+          cd shots
+          git init -q -b ci-screenshots
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q --allow-empty -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
+          git add . && git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q --amend -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots

@@ -70,6 +70,10 @@ enum Preview {
         let share = window(ShareView(model: model, sample: sampleReport).background(Color(nsColor: .windowBackgroundColor)), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
         NSApp.activate(ignoringOtherApps: true)
+        // Window numbers for `screencapture -l`.
+        if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
+            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+        }
     }
 
     @MainActor private static func window<V: View>(_ view: V, title: String) -> NSWindow {
