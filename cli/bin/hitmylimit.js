@@ -25,7 +25,8 @@ Options:
   --account <type>  own, shared or reseller (default own)
   --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
   --pick <n>        Share only this hit, as numbered in the list (default: all not sent yet)
-  --yes             Send without asking (still prints the report)
+  --yes             Send without asking (still prints the report). Needed to send
+                    when not run in a terminal
   --dry-run         Print the report and stop
   --api <url>       Send to another server (default https://hitmylimit.com/api/reports)
   -h, --help        Show this help
@@ -154,6 +155,8 @@ async function main() {
 
     if (o['dry-run'] || !interactive) showData();
     if (o['dry-run']) return console.log('\nDry run: nothing was sent.');
+    // Without a terminal there is no one to confirm, so sending needs --yes.
+    if (!interactive && !o.yes) return console.log('\nNothing was sent. Run with --yes to send without a prompt.');
     if (interactive) {
       const what = reports.length === 1 ? 'this report' : `these ${reports.length} reports`;
       for (;;) {
