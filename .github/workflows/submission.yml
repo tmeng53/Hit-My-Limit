@@ -45,5 +45,5 @@ jobs:
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: context.issue.number,
-              body: `Thanks! A few things need fixing before this can be drafted. Edit the issue and the bot will try again:\n\n${process.env.PROBLEMS}`,
+              body: `Some fields need fixing. Edit the issue and it will be checked again.\n\n${process.env.PROBLEMS}`,
             });

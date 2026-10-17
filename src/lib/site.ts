@@ -16,16 +16,13 @@ export const LABS = {
 
 export const t = {
   en: {
-    tagline: 'Every change to AI subscription limits, with sources.',
-    headline: 'Your AI plan changed.',
-    headline2: 'Here’s when.',
-    lead: 'Anthropic, OpenAI and Google change usage limits, and how they show them, often without notice. We log every change with a date and a source.',
+    tagline: 'AI usage limit changes, with sources',
+    headline: 'AI usage limit changes',
+    lead: 'Changes to usage limits for Claude, ChatGPT, Codex and Gemini, with dates and sources.',
     tighter: 'tighter',
     looser: 'looser',
     mixed: 'mixed',
     neutral: 'display',
-    since: 'changes since July 2025',
-    ledger: 'The log',
     all: 'All labs',
     limit: 'Limit change',
     display: 'Display change',
@@ -36,9 +33,9 @@ export const t = {
     reported: 'first reported',
     effective: 'took effect',
     submit: 'Suggest a change',
-    alerts: 'Email me when a limit changes',
+    alerts: 'Email alerts',
     emailPlaceholder: 'you@example.com',
-    subscribe: 'Get alerts',
+    subscribe: 'Subscribe',
     rss: 'RSS',
     other: '中文',
     otherHref: '/zh/',
@@ -46,16 +43,13 @@ export const t = {
     dataLicense: 'Data: CC BY 4.0',
   },
   zh: {
-    tagline: 'AI 订阅额度的每一次变化，都有出处。',
-    headline: '你的 AI 套餐又变了。',
-    headline2: '这里记着每一次。',
+    tagline: 'AI 用量额度变化记录',
+    headline: 'AI 用量额度变化记录',
     tighter: '收紧',
     looser: '放宽',
     mixed: '有增有减',
     neutral: '显示',
-    since: '2025 年 7 月以来的变化',
-    ledger: '变化记录',
-    lead: 'Anthropic、OpenAI 和 Google 经常在不通知用户的情况下调整用量额度和显示方式。我们记录每一次变化，附日期和来源。',
+    lead: 'Claude、ChatGPT、Codex 和 Gemini 的用量额度变化，附日期和来源。',
     all: '全部',
     limit: '额度变化',
     display: '显示方式变化',
@@ -66,9 +60,9 @@ export const t = {
     reported: '首次报道',
     effective: '生效',
     submit: '提交变化',
-    alerts: '额度变化时发邮件提醒我',
+    alerts: '邮件提醒',
     emailPlaceholder: '你的邮箱',
-    subscribe: '订阅提醒',
+    subscribe: '订阅',
     rss: 'RSS',
     other: 'English',
     otherHref: '/',
@@ -88,10 +82,6 @@ export function titleFor(c: Change, lang: Lang) {
 
 export function summaryFor(c: Change, lang: Lang) {
   return (lang === 'zh' && c.data.summary_zh) || c.data.summary;
-}
-
-export function monthKey(d: Date, lang: Lang) {
-  return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: lang === 'zh' ? 'long' : 'short', timeZone: 'UTC' });
 }
 
 export function formatDate(d: Date, lang: Lang) {

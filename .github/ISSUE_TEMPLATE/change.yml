@@ -6,8 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks! A bot checks the source link and drafts the entry. It goes live once a maintainer approves it.
-        中文提交也可以。
+        We check the source link and add the entry after review. 可以用中文提交。
   - type: dropdown
     id: lab
     attributes:
