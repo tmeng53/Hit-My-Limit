@@ -39,6 +39,8 @@ export async function readCodex(dirs, since) {
   const hits = [];
   // Limit events that couldn't be read; a sign the log format changed.
   const unread = [];
+  // The newest rate-limit snapshot across all sessions: how full each window is right now.
+  let latest = null;
   for (const dir of dirs) {
     for (const file of await jsonlFiles(dir, since)) {
       let version = null;
@@ -75,6 +77,7 @@ export async function readCodex(dirs, since) {
             // Once a request is refused, Codex logs snapshots with empty windows; keep the last real one.
             const snap = snapshot(p.rate_limits, time);
             if (snap.length) last = snap;
+            if (snap.length && !(latest && latest.time >= time)) latest = { time, snap, plan: PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? null };
             // Windows present but in a shape this tool doesn't know.
             else if (['primary', 'secondary'].some((k) => p.rate_limits[k])) unread.push({ time, version });
             plan = PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan;
@@ -94,8 +97,10 @@ export async function readCodex(dirs, since) {
   }
   usage.sort((a, b) => a.time - b.time);
   hits.sort((a, b) => a.time - b.time);
-  return { usage, hits, unread };
+  return { usage, hits, unread, latest };
 }
+
+export { windowKind };
 
 export function codexHits(data) {
   const { usage, hits } = data;

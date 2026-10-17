@@ -74,6 +74,10 @@ sends prompts, code, file names or paths.
 --pick <n>        Share only this hit (default: all not sent yet)
 --yes             Send without asking
 --dry-run         Print the report and stop
+--json            Print JSON only
 ```
+
+`npx hitmylimit status --json` prints how full each limit is now, your recent hits and how the tokens before
+each hit compare with earlier ones, without sending anything. The Mac app in `mac/` uses it.
 
 Not affiliated with Anthropic or OpenAI. MIT license.
