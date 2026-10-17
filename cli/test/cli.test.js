@@ -166,3 +166,19 @@ test('Claude Code: reads "session limit" notices and the 12:20am reset format', 
   assert.equal(new Date(h.start).toISOString(), '2026-10-15T23:20:00.000Z');
   assert.equal(buildReport(h, { plan: 'pro', work: 'coding', account: 'own', clientId: 'a'.repeat(32) }).minutes_to_limit, 165);
 });
+
+test('hit list shows tokens, cache share, models, plan and weekly use', async () => {
+  const { hitLines } = await import('../src/display.js');
+  const c = {
+    lab: 'openai', product: 'codex', window: '5h', plan: 'plus', weekly_used: 40,
+    start: Date.parse('2026-10-16T09:00:00Z'), hit: Date.parse('2026-10-16T11:15:00Z'), requests: 12,
+    tokens: { total: 2_000_000, cache_read: 1_500_000 },
+    models: { 'gpt-5-codex': { total: 1_500_000 }, 'gpt-5-mini': { total: 500_000 } },
+  };
+  const text = hitLines(c, 0).join('\n');
+  assert.match(text, /Codex, 5-hour limit {2}new/);
+  assert.match(text, /Ran out 2h 15m after the window started \(09:00 UTC\)/);
+  assert.match(text, /2\.0M tokens, 12 requests, 75% read from cache/);
+  assert.match(text, /gpt-5-codex +1\.5M +75%/);
+  assert.match(text, /plan Plus \(from the logs\), weekly limit 40% used/);
+});

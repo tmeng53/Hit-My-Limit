@@ -140,6 +140,9 @@ const strings = {
     <label class="field"><span>{text.resets}</span>
       <span class="stack"><input type="datetime-local" name="resets" required /><small>{text.resetsHint}</small></span>
     </label>
+    <label class="field"><span>{text.felt} <small>{text.optional}</small></span>
+      <select name="felt"><option value="">–</option>{FELT.map((f) => <option value={f}>{text.felts[f]}</option>)}</select>
+    </label>
     <details>
       <summary>{text.more}</summary>
       <label class="field"><span>{text.work}</span>
@@ -147,9 +150,6 @@ const strings = {
       </label>
       <label class="field"><span>{text.account}</span>
         <select name="account">{ACCOUNTS.map((a) => <option value={a}>{text.accounts[a]}</option>)}</select>
-      </label>
-      <label class="field"><span>{text.felt}</span>
-        <select name="felt"><option value="">–</option>{FELT.map((f) => <option value={f}>{text.felts[f]}</option>)}</select>
       </label>
       <label class="field"><span>{text.model}</span>
         <input name="model" list="models" maxlength="40" autocomplete="off" /><datalist id="models"></datalist>

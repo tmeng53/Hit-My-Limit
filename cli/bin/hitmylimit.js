@@ -4,25 +4,27 @@ import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { claudeDirs, claudeHits, readClaude } from '../src/claude.js';
 import { codexDirs, codexHits, readCodex } from '../src/codex.js';
-import { ACCOUNTS, FELT, PLANS, PRODUCT_NAMES, WINDOW_NAMES, WORK } from '../src/options.js';
+import { ACCOUNTS, FELT, PLANS, WORK } from '../src/options.js';
 import { buildReport, comparisonLine, send } from '../src/report.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
-import { DAY, duration, isoDay } from '../src/time.js';
+import { colors, hitLines } from '../src/display.js';
+import { DAY } from '../src/time.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const HELP = `Usage: npx hitmylimit [options]
 
 Finds the times you hit a usage limit in your local Claude Code and Codex logs,
-shows the report it would send, and sends it to hitmylimit.com if you agree.
+shows the reports it would send, and sends them to hitmylimit.com if you agree.
 
 Options:
   --days <n>        How far back to look (default 30)
-  --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200
+  --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (used where the logs
+                    have no plan)
   --work <kind>     coding, chat, research or other (default coding)
   --account <type>  own, shared or reseller (default own)
   --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
-  --pick <n>        Which limit hit to share, as numbered in the list (default 1)
+  --pick <n>        Share only this hit, as numbered in the list (default: all not sent yet)
   --yes             Send without asking (still prints the report)
   --dry-run         Print the report and stop
   --api <url>       Send to another server (default https://hitmylimit.com/api/reports)
@@ -32,8 +34,6 @@ Options:
 It reads only ~/.claude/projects and ~/.codex/sessions. It never reads login
 or credential files and never contacts Anthropic or OpenAI.
 `;
-
-const tokens = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n));
 
 async function main() {
   const { values: o } = parseArgs({
@@ -58,6 +58,7 @@ async function main() {
   const since = Date.now() - days * DAY;
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !o.yes;
   const rl = interactive ? createInterface({ input: process.stdin, output: process.stdout }) : null;
+  const color = colors(process.stdout.isTTY && !process.env.NO_COLOR);
 
   const ask = async (question, choices, fallback, preset) => {
     if (preset !== undefined) {
@@ -94,49 +95,36 @@ async function main() {
       return;
     }
 
-    console.log(`\nLimit hits found:`);
+    console.log(`\nLimit hits found: ${found.length}\n`);
     found.forEach((c, i) => {
-      const cols = [
-        String(i + 1).padStart(3),
-        isoDay(new Date(c.hit)),
-        PRODUCT_NAMES[c.product].padEnd(11),
-        WINDOW_NAMES[c.window].padEnd(7),
-        `${duration((c.hit - c.start) / 60000)} into the window`.padEnd(26),
-        c.tokens ? `${tokens(c.tokens.total)} tokens`.padEnd(14) : ''.padEnd(14),
-        state.sent.includes(hitKey(c)) ? '(already sent)' : '',
-      ];
-      console.log(cols.join('  ').trimEnd());
+      console.log(hitLines(c, i, { sent: state.sent.includes(hitKey(c)), c: color }).join('\n'));
+      console.log();
     });
 
-    const firstUnsent = Math.max(0, found.findIndex((c) => !state.sent.includes(hitKey(c))));
-    let pick = o.pick !== undefined ? Number(o.pick) : firstUnsent + 1;
-    if (rl && o.pick === undefined) {
-      for (;;) {
-        const a = (await rl.question(`\nWhich one do you want to share? [${pick}]: `)).trim();
-        const n = a === '' ? pick : Number(a);
-        if (Number.isInteger(n) && n >= 1 && n <= found.length) {
-          pick = n;
-          break;
-        }
-      }
-    }
-    const c = found[pick - 1];
-    if (!c) throw new Error(`--pick must be between 1 and ${found.length}`);
-    if (!rl && o.pick === undefined && state.sent.includes(hitKey(c))) {
-      return console.log('\nAll of these were already sent. Use --pick to send one again.');
+    // By default every hit not sent before is shared; --pick shares one, including one already sent.
+    let chosen;
+    if (o.pick !== undefined) {
+      const c = found[Number(o.pick) - 1];
+      if (!c) throw new Error(`--pick must be between 1 and ${found.length}`);
+      chosen = [c];
+    } else {
+      chosen = found.filter((c) => !state.sent.includes(hitKey(c)));
+      if (!chosen.length) return console.log('\nAll of these were already sent. Use --pick to send one again.');
     }
 
-    // The plan Codex logged at the time of the hit is used as is. Otherwise the last answer is only a suggestion,
-    // since people change plans; without a prompt to confirm it, --plan is required.
-    if (!rl && !o.plan && !c.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
-    const plan = c.plan && !o.plan
-      ? c.plan
-      : await ask(
-        `Your ${c.lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan on ${isoDay(new Date(c.hit))}, when you hit the limit:`,
-        PLANS[c.lab],
-        state.plans[c.lab],
+    // The plan Codex logged at the time of a hit is used as is. For the others the plan is asked once per lab;
+    // the last answer is only a suggestion, since people change plans. Without a prompt, --plan is required.
+    const plans = {};
+    for (const lab of [...new Set(chosen.filter((c) => !c.plan).map((c) => c.lab))]) {
+      if (!rl && !o.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
+      const n = chosen.filter((c) => c.lab === lab).length;
+      plans[lab] = await ask(
+        `Your ${lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan when you hit ${n === 1 ? 'this limit' : 'these limits'}:`,
+        PLANS[lab],
+        state.plans[lab],
         o.plan,
       );
+    }
     // The rest has defaults and is only set with options, so the plan is the one question.
     const option = (choices, value, fallback) => {
       if (value === undefined) return fallback;
@@ -145,23 +133,57 @@ async function main() {
     };
     const work = option(WORK, o.work, 'coding');
     const account = option(ACCOUNTS, o.account, 'own');
-    const felt = option(FELT, o.felt, null);
-    const report = buildReport(c, { plan, work, account, felt: felt === 'skip' ? null : felt, clientId: state.client_id });
-    console.log('\nThis is everything that will be sent:\n');
-    console.log(JSON.stringify(report, null, 2));
-    console.log('\nclient_id is a random id made on this computer. It is hashed before it is stored.');
+    // One optional keystroke, asked once for all the hits being sent.
+    let felt = option(FELT, o.felt, null);
+    if (rl && o.felt === undefined) {
+      const a = (await rl.question(
+        `\nDid ${chosen.length === 1 ? 'this limit' : 'these limits'} run out sooner than you're used to?\n` +
+        `  s = sooner   u = about the same   l = later   Enter = skip: `,
+      )).trim().toLowerCase();
+      felt = { s: 'sooner', u: 'usual', l: 'later' }[a[0]] ?? null;
+    }
+    const reports = chosen.map((c) => buildReport(c, {
+      plan: plans[c.lab] ?? c.plan,
+      work,
+      account,
+      felt: felt === 'skip' ? null : felt,
+      clientId: state.client_id,
+    }));
+    const showData = () => {
+      console.log(`\nThis is everything that will be sent:\n`);
+      console.log(JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2));
+      console.log('\nclient_id is a random id made on this computer. It is hashed before it is stored.');
+    };
 
+    if (o['dry-run'] || !rl) showData();
     if (o['dry-run']) return console.log('\nDry run: nothing was sent.');
     if (rl) {
-      const a = (await rl.question('\nSend it? [Y/n]: ')).trim().toLowerCase();
-      if (a !== '' && a !== 'y' && a !== 'yes') return console.log('Nothing was sent.');
+      const what = reports.length === 1 ? 'this report' : `these ${reports.length} reports`;
+      for (;;) {
+        const a = (await rl.question(`\nSend ${what} to hitmylimit.com? [Y/n, d = show the exact data]: `)).trim().toLowerCase();
+        if (a === 'd') {
+          showData();
+          continue;
+        }
+        if (a !== '' && a !== 'y' && a !== 'yes') return console.log('Nothing was sent.');
+        break;
+      }
     }
 
-    const result = await send(o.api, report);
-    state.plans[c.lab] = plan;
-    if (!state.sent.includes(hitKey(c))) state.sent.push(hitKey(c));
-    await saveState(statePathname, state);
-    console.log(`\n${result.duplicate ? 'This report was already sent.' : 'Sent. Thank you.'} ${comparisonLine(result.comparison)}`);
+    Object.assign(state.plans, plans);
+    let last = null;
+    try {
+      for (const [i, report] of reports.entries()) {
+        last = await send(o.api, report);
+        if (!state.sent.includes(hitKey(chosen[i]))) state.sent.push(hitKey(chosen[i]));
+      }
+    } finally {
+      // Keep track of what got through even if a later report failed.
+      await saveState(statePathname, state);
+    }
+    console.log(reports.length === 1
+      ? `\n${last.duplicate ? 'This report was already sent.' : 'Sent. Thank you.'} ${comparisonLine(last.comparison)}`
+      : `\nSent ${reports.length} reports. Thank you.`);
     console.log('Results by plan: https://hitmylimit.com/limits');
   } finally {
     rl?.close();

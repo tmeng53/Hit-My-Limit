@@ -7,7 +7,8 @@ npx hitmylimit
 ```
 
 It finds the times you hit a usage limit in the last 30 days, asks which plan you were on (unless Codex logged it),
-prints the exact report, and sends it to [hitmylimit.com](https://hitmylimit.com/limits) only if you say yes.
+prints the exact reports, and sends every hit you haven't sent before to [hitmylimit.com](https://hitmylimit.com/limits)
+only if you say yes.
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the
 tool tells you how your report compares.
 
@@ -70,7 +71,7 @@ sends prompts, code, file names or paths.
 --work <kind>     coding, chat, research or other (default coding)
 --account <type>  own, shared or reseller (default own)
 --felt <answer>   sooner, usual or later than usual (not sent by default)
---pick <n>        Which limit hit to share
+--pick <n>        Share only this hit (default: all not sent yet)
 --yes             Send without asking
 --dry-run         Print the report and stop
 ```
