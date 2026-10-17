@@ -95,7 +95,7 @@ struct ModelList: View {
             ForEach(list, id: \.key) { name, m in
                 HStack(spacing: 8) {
                     Text(name).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
-                        .frame(width: 96, alignment: .leading)
+                        .frame(width: 128, alignment: .leading)
                     Bar(fraction: m.total / top, tint: tint.opacity(0.7), height: 3)
                     Text(Format.tokens(m.total)).font(.system(size: 12, weight: .semibold)).monospacedDigit()
                         .frame(minWidth: 44, alignment: .trailing)
