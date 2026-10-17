@@ -14,7 +14,7 @@ enum CLI {
 
     static let minimum = [18, 17]
 
-    // Apps opened from Finder don't get the shell's PATH, so look where Node is usually installed, ask a login
+    // Without the bundled Node: apps opened from Finder don't get the shell's PATH, so look where Node is usually installed, ask a login
     // shell too, and use the newest one. An old Node elsewhere on the Mac is skipped.
     private static var found: URL?
     private static let lock = NSLock()
@@ -31,6 +31,10 @@ enum CLI {
 
     private static func lookup() -> Result<URL, Failure> {
         let fm = FileManager.default
+        // The app ships its own Node; the rest is for builds without it.
+        if let bundled = Bundle.main.resourceURL?.appendingPathComponent("node/node"), fm.isExecutableFile(atPath: bundled.path) {
+            return .success(bundled)
+        }
         let home = fm.homeDirectoryForCurrentUser.path
         var candidates = ["/opt/homebrew/bin/node", "/usr/local/bin/node", "\(home)/.volta/bin/node", "\(home)/.local/bin/node", "/usr/bin/node"]
         // Version managers keep one folder per version.

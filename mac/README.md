@@ -25,7 +25,7 @@ login or credential files, never reads browser cookies, and never contacts Anthr
 ## Install
 
 Download the zip from the latest `mac-v*` release, unzip, and move "Hit My Limit" to Applications.
-Needs macOS 13 or later and, for now, [Node.js](https://nodejs.org) 18.17 or later.
+Needs macOS 13 or later. Node.js is included in the app, so there is nothing else to install.
 
 Until the app is signed with a Developer ID, macOS blocks the first launch. Open it once, then go to
 System Settings → Privacy & Security and click Open Anyway.

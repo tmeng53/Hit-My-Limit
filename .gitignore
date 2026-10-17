@@ -4,3 +4,4 @@ dist/
 .vercel/
 mac/.build/
 mac/dist/
+mac/dist-cache/
