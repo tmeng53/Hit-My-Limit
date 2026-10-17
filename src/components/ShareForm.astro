@@ -54,8 +54,6 @@ const text = {
     ],
     notStoredItems: ['prompts, code, file names', 'account details, email', 'your clock time, time zone, IP address'],
     ipNote: 'Your IP address is only used to limit reports per day, as a hash deleted the next day.',
-    data: 'Every report is public. Anyone can download them and reuse them with credit.',
-    dataLink: 'download (csv)',
   },
   zh: {
     h1: '额度用完了？记一笔。',
@@ -102,8 +100,6 @@ const text = {
     ],
     notStoredItems: ['你的提示词、代码、文件名', '你的账号、邮箱', '你在哪个时区、IP 地址'],
     ipNote: 'IP 只用来防刷，存的是打乱后的值，第二天就删。',
-    data: '所有数据都是公开的，谁都可以下载，注明出处就能用。',
-    dataLink: '下载（CSV）',
   },
 }[lang];
 
@@ -182,7 +178,6 @@ const strings = {
     {text.notStoredItems.map((x) => <li class="minus"><span>−</span>{x}</li>)}
   </ul>
   <p>{text.ipNote}</p>
-  <p>{text.data} <a href="/data/reports.csv">{text.dataLink}</a></p>
 </section>
 
 <script define:vars={{ options, strings, windows: WINDOWS }}>
