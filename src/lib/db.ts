@@ -270,19 +270,3 @@ export async function homeData(): Promise<HomeData> {
   for (const r of weekly) if (r.n >= WEEK_MIN && r.i >= 0 && r.i < HOME_WEEKS) plan(r.lab, r.plan).minutes[r.i] = Math.round(r.median);
   return { days: RECENT_DAYS, reports: totals[0].reports, people: totals[0].people, weeks, plans: [...plans.values()] };
 }
-
-export const CSV_COLUMNS = [
-  'id', 'hit_on', 'lab', 'product', 'plan', 'limit_window', 'minutes_to_limit', 'model', 'work', 'account',
-  'tokens_total', 'tokens_input', 'tokens_output', 'tokens_cache_read', 'tokens_cache_write',
-  'tool_version', 'source', 'contributor', 'felt', 'models',
-  'tokens_reasoning', 'requests', 'start_hour', 'weekly_used',
-] as const;
-
-// Every visible report, for the public dataset.
-export async function allReports() {
-  const p = await db();
-  const { rows } = await p.query(
-    `select ${CSV_COLUMNS.join(', ')} from reports where not hidden order by id`,
-  );
-  return rows;
-}

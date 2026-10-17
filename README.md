@@ -35,7 +35,6 @@ Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The
 People share when they hit a limit through the form at `/share` or the command-line tool in [`cli/`](cli/)
 (`npx hitmylimit`, reads local Claude Code and Codex logs). `/limits` shows medians per plan and limit over the
 last 30 days, once a group has 20 reports. Reports from shared and resold accounts are shown separately.
-All reports are downloadable at `/data/reports.csv`.
 
 A report holds lab, product, plan, which limit, the date, minutes from window start to the limit (rounded to 5),
 kind of work, account type, the UTC hour the window started, and optionally model, token counts per model,
@@ -62,10 +61,10 @@ npm run build
 Without `DATABASE_URL`, the change log works and the report pages say reports are not open yet. To try reports
 locally, point `DATABASE_URL` at any Postgres database.
 
-Deployed on Vercel: pages are static, and the report API, `/limits` and the CSV run as Vercel Functions.
+Deployed on Vercel: pages are static, and the report API and the data pages run as Vercel Functions.
 
 ## License
 
-Code: [MIT](LICENSE). Change log and report data: [CC BY 4.0](LICENSE-DATA.md).
+Code: [MIT](LICENSE).
 
 Not affiliated with or endorsed by Anthropic, OpenAI or Google. Product and plan names are used only to identify them.
