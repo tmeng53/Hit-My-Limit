@@ -108,40 +108,51 @@ const base = {
 
 const jokes = {
   en: {
-    kicker: { tighter: "You'll be touching grass sooner.", looser: 'Less grass this month.', mixed: 'Grass forecast: mixed.' }[overall],
-    sub: 'How long people last in a 5-hour window before the bar fills up and there is nothing left to do but go outside. Self-reported, not official numbers.',
+    kicker: { tighter: 'Time to touch grass.', looser: 'Less grass this month.', mixed: 'Some of you can stay inside.' }[overall],
+    headline: { tighter: 'Limits are getting tighter', looser: 'Limits are getting looser', mixed: 'Limits are moving around' }[overall],
+    sub: 'Based on what people report when they hit a limit.',
     stats: [
       [n(data.reports), 'reports'],
-      [n(data.people), 'people sent outside'],
-      [nowFelt ? `${nowFelt.pct}%` : '–', 'said “wait, already?” last week'],
+      [n(data.people), 'people'],
+      [nowFelt ? `${nowFelt.pct}%` : '–', 'said “already?” last week'],
     ],
-    lost: (m: number) => `That's ${Math.round(m)} extra minutes of grass.`,
-    noData: "Nobody's been sent outside yet.",
-    noDataHint: 'Or nobody is using it. Be the first',
-    chartTitle: 'Time until you’re sent outside',
-    chartSub: 'Median time before “You’ve hit your limit”, by week. Ticks are plan changes. Down means more grass.',
-    changesTitle: 'Recent fine print',
-    shareTitle: 'Touching grass right now? Tell us how long you lasted.',
-    shareSub: 'It takes a minute, and you have time until the reset. Nothing personal is sent.',
-    webHint: 'Six fields. Then go outside.',
+    lost: null,
+    noData: 'No reports yet',
+    noDataHint: 'Use Gemini? Send one',
+    chartTitle: 'How long until you’re locked out',
+    chartSub: 'Weekly median. Dots up top are plan changes.',
+    changesTitle: 'Recent plan changes',
+    shareTitle: 'Locked out right now? Send it in.',
+    shareSub: 'Takes a minute. Not like you’re doing anything else.',
+    terminal: 'Terminal',
+    terminalHint: 'Reads your Claude Code and Codex logs. Asks before sending.',
+    web: 'Or the form',
+    webHint: 'Six fields.',
   },
   zh: {
-    kicker: { tighter: '摸鱼时间提前了。', looser: '这个月摸鱼少了。', mixed: '摸鱼预报：多云。' }[overall],
-    sub: '在 5 小时额度周期里，大家用多久会把额度用满，然后只能摸鱼。由用户自行报告，不是官方数字。',
+    kicker: { tighter: '又该摸鱼了。', looser: '摸鱼时间变少了。', mixed: '有人摸鱼，有人加班。' }[overall],
+    headline: { tighter: '额度在缩水', looser: '额度变多了', mixed: '额度有涨有跌' }[overall],
+    sub: '数据来自大家撞上限时交的报告。',
     stats: [
       [n(data.reports), '份报告'],
-      [n(data.people), '人被迫摸鱼'],
-      [nowFelt ? `${nowFelt.pct}%` : '–', '的人上周说「这么快就没了？」'],
+      [n(data.people), '人'],
+      [nowFelt ? `${nowFelt.pct}%` : '–', '的人上周说「这就没了？」'],
     ],
-    lost: (m: number) => `多摸了 ${Math.round(m)} 分钟鱼。`,
-    noData: '还没人被迫摸鱼。',
-    noDataHint: '也可能是还没人用。来当第一个',
-    chartTitle: '多久开始摸鱼',
-    chartSub: '看到「You’ve hit your limit」前的用时，每周中位数。刻度是方案变化。往下走就是多摸鱼。',
-    changesTitle: '最近的小字条款',
-    shareTitle: '正在摸鱼？说说你撑了多久。',
-    shareSub: '只要一分钟，反正离重置还早。不会发送任何个人信息。',
-    webHint: '六个字段，填完接着摸鱼。',
+    lost: null,
+    since: `跟 ${weeks.length} 周前比`,
+    was: '以前',
+    noData: '还没有报告',
+    noDataHint: '用 Gemini 的来一份',
+    chartTitle: '多久就用完了',
+    chartSub: '每周中位数。上面的点是方案变化。',
+    changesTitle: '最近的方案变化',
+    shareTitle: '正在摸鱼？顺手报一下。',
+    shareSub: '只要一分钟，反正离重置还早。',
+    terminal: '终端',
+    terminalHint: '读 Claude Code 和 Codex 的日志，发之前会问你。',
+    web: '或者填表',
+    webHint: '六个空。',
+    webButton: '去填表',
   },
 }[lang];
 const text = { ...base, kicker: null as string | null, lost: null as ((m: number) => string) | null, ...(fun ? jokes : {}) };
@@ -256,7 +267,11 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
       </g>
     ))}
     <line x1={g.L} x2={g.W - g.R} y1={g.y(0)} y2={g.y(0)} class="base" />
-    {fun && <path class="tufts" d={Array.from({ length: Math.floor((g.W - g.L - g.R) / 18) }, (_, k) => {
+    {fun && lang === 'zh' && <path class="fish" d={Array.from({ length: Math.floor((g.W - g.L - g.R) / 40) }, (_, k) => {
+      const x = g.L + 10 + k * 40, y = g.y(0) - 7 - (k % 2) * 4;
+      return `M${x},${y} q8,-6 16,0 q-8,6 -16,0 Z M${x + 15},${y} l7,-5 v10 Z`;
+    }).join(' ')} />}
+    {fun && lang !== 'zh' && <path class="tufts" d={Array.from({ length: Math.floor((g.W - g.L - g.R) / 18) }, (_, k) => {
       const x = g.L + 9 + k * 18, y = g.y(0), h = 5 + ((k * 7) % 4);
       return `M${x - 3},${y} q-1,-${h - 1} -3,-${h} M${x},${y} q0,-${h + 2} 2,-${h + 3} M${x + 3},${y} q1,-${h - 2} 3,-${h - 1}`;
     }).join(' ')} />}
@@ -383,6 +398,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .grass-mark { flex: none; width: 60px; height: 60px; border-radius: 14px; background: var(--panel); border: 1px solid var(--panel-line); }
   .grass-mark .bar { fill: var(--fg); }
   .grass-mark .blades { fill: none; stroke: var(--plus); stroke-width: 3.5; stroke-linecap: round; }
+  .fish { fill: var(--muted); opacity: 0.5; }
   .tufts { fill: none; stroke: var(--plus); stroke-width: 1.4; stroke-linecap: round; opacity: 0.55; }
   .kicker { margin: -4px 0 14px; font: 500 24px/1.3 var(--sans); }
   .quip { margin-top: 8px; font: 15px/1.4 var(--sans); }
