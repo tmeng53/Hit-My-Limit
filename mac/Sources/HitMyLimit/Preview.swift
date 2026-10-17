@@ -81,13 +81,15 @@ enum Preview {
         panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY))
         let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
+        let sent = window(ShareView(model: model, sampleSent: SendResult(sent: 2, duplicate: false, comparison_line: "You hit the limit sooner than 64% of 212 recent reports on the same plan.")), title: "Share limit hits")
+        sent.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 10))
         let settings = window(SettingsView(model: model), title: "Hit My Limit Settings")
         settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         // Window numbers for `screencapture -l`.
         if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
-            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
         }
     }
 

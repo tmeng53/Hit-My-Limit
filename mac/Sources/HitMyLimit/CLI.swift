@@ -74,9 +74,8 @@ enum CLI {
     }
 
     // The exact reports that would be sent, pretty-printed for showing.
-    static func preview(plans: [String: String], pick: String?) async throws -> String {
-        var args = ["--json", "--dry-run"] + planArgs(plans)
-        if let pick { args += ["--pick", pick] }
+    static func preview(plans: [String: String], picks: [String]) async throws -> String {
+        let args = ["--json", "--dry-run"] + planArgs(plans) + picks.flatMap { ["--pick", $0] }
         let data = try await run(args)
         let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let reports = obj?["reports"] ?? []
@@ -84,9 +83,8 @@ enum CLI {
         return String(data: pretty, encoding: .utf8) ?? ""
     }
 
-    static func send(plans: [String: String], pick: String?) async throws -> SendResult {
-        var args = ["--json", "--yes"] + planArgs(plans)
-        if let pick { args += ["--pick", pick] }
+    static func send(plans: [String: String], picks: [String]) async throws -> SendResult {
+        let args = ["--json", "--yes"] + planArgs(plans) + picks.flatMap { ["--pick", $0] }
         return try JSONDecoder().decode(SendResult.self, from: try await run(args))
     }
 }

@@ -26,7 +26,8 @@ Options:
   --work <kind>     coding, chat, research or other (default coding)
   --account <type>  own, shared or reseller (default own)
   --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
-  --pick <n>        Share only this hit, as numbered in the list (default: all not sent yet)
+  --pick <n>        Share only this hit, as numbered in the list (default: all not sent yet).
+                    Can be given more than once
   --yes             Send without asking (still prints the report). Needed to send
                     when not run in a terminal
   --dry-run         Print the report and stop
@@ -49,7 +50,7 @@ async function main() {
       work: { type: 'string' },
       account: { type: 'string' },
       felt: { type: 'string' },
-      pick: { type: 'string' },
+      pick: { type: 'string', multiple: true },
       yes: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
       api: { type: 'string', default: process.env.HITMYLIMIT_API || 'https://hitmylimit.com/api/reports' },
@@ -121,13 +122,15 @@ async function main() {
     });
     if (note) log(`${note}\n`);
 
-    // By default every hit not sent before is shared; --pick shares one, including one already sent.
+    // By default every hit not sent before is shared; --pick shares the ones named, including ones already sent.
     let chosen;
     if (o.pick !== undefined) {
-      // A number from the list, or a hit's key as `status` prints it.
-      const c = found[Number(o.pick) - 1] ?? found.find((f) => hitKey(f) === o.pick);
-      if (!c) throw new Error(`--pick must be between 1 and ${found.length}`);
-      chosen = [c];
+      // Numbers from the list, or hits' keys as `status` prints them.
+      chosen = o.pick.map((p) => {
+        const c = found[Number(p) - 1] ?? found.find((f) => hitKey(f) === p);
+        if (!c) throw new Error(`--pick must be between 1 and ${found.length}, or a hit's key`);
+        return c;
+      });
     } else {
       chosen = found.filter((c) => !state.sent.includes(hitKey(c)));
       if (!chosen.length) {

@@ -152,7 +152,7 @@ struct PanelView: View {
                 HStack(spacing: 8) {
                     Circle().fill(Look.lab(h.lab)).frame(width: 7, height: 7)
                     Text(Options.products[h.product] ?? h.product).font(.system(size: 12)).lineLimit(1)
-                    Text("\(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window), ran out after \(Format.duration(minutes: (h.hit - h.start) / 60000))")
+                    Text("\(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window) · \(Format.duration(minutes: (h.hit - h.start) / 60000))")
                         .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 4)
                     Text(Format.ago(date(h.hit))).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
