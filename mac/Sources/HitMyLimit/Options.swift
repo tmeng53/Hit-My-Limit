@@ -7,6 +7,7 @@ enum Options {
     static let products = ["claude-code": "Claude Code", "codex": "Codex"]
     static let windows = ["5h": "5-hour", "daily": "daily", "weekly": "weekly", "monthly": "monthly"]
     static let labs = ["anthropic": "Anthropic", "openai": "OpenAI", "google": "Google"]
+    static let labOrder = ["anthropic", "openai", "google"]
 
     static func planName(_ lab: String, _ key: String?) -> String? {
         guard let key else { return nil }

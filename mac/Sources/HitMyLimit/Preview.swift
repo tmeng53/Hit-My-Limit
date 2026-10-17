@@ -59,6 +59,15 @@ enum Preview {
     ]
     """
 
+    // Made-up numbers in the shape the sent screen reads.
+    static let sampleSent = try! JSONDecoder().decode(SendResult.self, from: Data("""
+    {"sent":2,"duplicate":false,
+     "comparison":{"percent":62,"n":212,"sameWork":false,"median_minutes":150,"bin_minutes":15,
+                   "bins":[1,2,3,5,8,11,14,17,19,21,22,21,19,16,12,9,6,3,2,1]},
+     "comparison_line":"You hit the limit sooner than 62% of 212 recent reports on the same plan.",
+     "reports":[{"lab":"anthropic","plan":"max-5x","window":"5h","minutes_to_limit":120}]}
+    """.utf8))
+
     @MainActor static func show(_ model: Model) {
         if ProcessInfo.processInfo.environment["HITMYLIMIT_APPEARANCE"] == "dark" {
             NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -82,9 +91,9 @@ enum Preview {
         panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY))
         let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
-        let sent = window(ShareView(model: model, sampleSent: SendResult(sent: 2, duplicate: false, comparison_line: "You hit the limit sooner than 64% of 212 recent reports on the same plan.")), title: "Share limit hits")
+        let sent = window(ShareView(model: model, sampleSent: sampleSent), title: "Share limit hits")
         sent.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 10))
-        let settings = window(SettingsView(model: model), title: "Hit My Limit Settings")
+        let settings = window(SettingsView(model: model), title: "Settings")
         settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)

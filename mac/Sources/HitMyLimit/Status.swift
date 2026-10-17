@@ -64,11 +64,28 @@ struct Status: Decodable {
     let unread: Unread
 }
 
-// What `hitmylimit --json --dry-run` and `--json --yes` print.
+// What `hitmylimit --json --yes` prints. `comparison` is the site's answer for the last report sent; `bins`
+// (reports per `bin_minutes` of time to the limit, from 0) and `median_minutes` are there when the site sends them.
 struct SendResult: Decodable {
+    struct Comparison: Decodable {
+        let percent: Int?
+        let n: Int
+        let sameWork: Bool?
+        let median_minutes: Double?
+        let bins: [Int]?
+        let bin_minutes: Double?
+    }
+    struct Report: Decodable {
+        let lab: String
+        let plan: String
+        let window: String
+        let minutes_to_limit: Double
+    }
     let sent: Int
     let duplicate: Bool?
+    let comparison: Comparison?
     let comparison_line: String?
+    let reports: [Report]?
 }
 
 func date(_ ms: Double) -> Date { Date(timeIntervalSince1970: ms / 1000) }

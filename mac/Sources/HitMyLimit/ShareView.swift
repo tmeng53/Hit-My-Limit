@@ -73,11 +73,11 @@ struct ShareView: View {
             if let error { Label(error, systemImage: "exclamationmark.triangle.fill").font(.system(size: 12)).foregroundStyle(.orange) }
 
             HStack {
-                Button("Cancel") { dismiss() }.controlSize(.large)
+                Button("Cancel") { dismiss() }.buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button(chosen.count == 1 ? "Send 1 report" : "Send \(chosen.count) reports") { Task { await send() } }
-                    .primaryButton().keyboardShortcut(.defaultAction)
+                    .inkButton().keyboardShortcut(.defaultAction)
                     .disabled(busy || !ready)
             }
         }
@@ -92,7 +92,7 @@ struct ShareView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 18)).foregroundStyle(on ? Color.accentColor : .secondary)
+                    .font(.system(size: 18)).foregroundStyle(on ? Look.ink : Color.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Circle().fill(Look.lab(h.lab)).frame(width: 7, height: 7)
@@ -109,8 +109,7 @@ struct ShareView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
-            .background(.primary.opacity(on ? 0.06 : 0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? Color.accentColor.opacity(0.5) : .primary.opacity(0.06)))
+            .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -135,7 +134,7 @@ struct ShareView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .rotationEffect(.degrees(showRaw ? 90 : 0))
                     Text("Exact data").font(.system(size: 12, weight: .medium))
-                    Text("Optional, to check nothing private is sent")
+                    Text("To check nothing private is sent")
                         .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .contentShape(Rectangle())
@@ -155,25 +154,49 @@ struct ShareView: View {
         .background(.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
+    // The reward for sharing: where your hit sits among everyone else's on the same plan.
     private func done(_ r: SendResult) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 44)).foregroundStyle(.green)
-                .padding(.top, 8)
-            Text(r.sent == 1 ? "1 report sent. Thank you." : "\(r.sent) reports sent. Thank you.")
-                .font(.system(size: 16, weight: .semibold))
-            if let line = r.comparison_line, !line.isEmpty {
-                Text(line).font(.system(size: 13)).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            Label(r.sent == 1 ? "1 report sent" : "\(r.sent) reports sent", systemImage: "checkmark")
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Look.plus)
+            if let c = r.comparison, let p = c.percent, let rep = r.reports?.last {
+                let plan = Options.planName(rep.lab, rep.plan) ?? rep.plan
+                let window = rep.window == "5h" ? "5-hour" : Options.windows[rep.window] ?? rep.window
+                (Text("You ran out sooner than ") + Text("\(p)%").foregroundColor(Look.lab(rep.lab)) + Text(" of \(plan) users."))
+                    .font(.system(size: 26, weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text([
+                    "\(c.n) reports in the last 30 days\(c.sameWork == true ? " for the same kind of work" : "").",
+                    c.median_minutes.map { "Median: \(Format.duration(minutes: $0)) before the \(window) limit." },
+                    "You: \(Format.duration(minutes: rep.minutes_to_limit)).",
+                ].compactMap { $0 }.joined(separator: " "))
+                .font(.system(size: 13)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                if let bins = c.bins, let w = c.bin_minutes, w > 0, bins.count > 1 {
+                    Histogram(
+                        bins: bins,
+                        you: min(bins.count - 1, Int(rep.minutes_to_limit / w)),
+                        tint: Look.lab(rep.lab),
+                        middle: c.median_minutes.map { "median \(Format.duration(minutes: $0))" } ?? "",
+                        right: Format.duration(minutes: Double(bins.count) * w)
+                    )
+                    .padding(.top, 14)
+                }
+            } else {
+                Text(r.comparison_line ?? "Thank you.")
+                    .font(.system(size: 15, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack {
-                Button("See limits by plan") { Links.open(Links.limits) }.controlSize(.large)
-                Button("Done") { dismiss() }.primaryButton().keyboardShortcut(.defaultAction)
+                Button("See all plans on hitmylimit.com") { Links.open(Links.limits) }
+                    .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Done") { dismiss() }.inkButton().keyboardShortcut(.defaultAction)
             }
-            .padding(.top, 4)
+            .padding(.top, 12)
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(28)
     }
 
     private func binding(_ lab: String) -> Binding<String> {
@@ -204,6 +227,43 @@ struct ShareView: View {
             await model.refresh()
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+}
+
+// Reports by time to the limit, with your bar in the tool's color.
+struct Histogram: View {
+    let bins: [Int]
+    let you: Int
+    let tint: Color
+    let middle: String
+    let right: String
+
+    var body: some View {
+        let top = CGFloat(max(1, bins.max() ?? 1))
+        VStack(spacing: 6) {
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(bins.indices, id: \.self) { i in
+                    VStack(spacing: 6) {
+                        if i == you {
+                            Text("you").font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).fixedSize()
+                        }
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(i == you ? tint : Color.primary.opacity(0.1))
+                            .frame(height: max(4, 150 * CGFloat(bins[i]) / top))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 176, alignment: .bottom)
+            HStack {
+                Text("0")
+                Spacer()
+                Text(middle)
+                Spacer()
+                Text(right)
+            }
+            .font(.system(size: 11)).foregroundStyle(.tertiary)
         }
     }
 }

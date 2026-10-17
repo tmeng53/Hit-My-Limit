@@ -29,7 +29,7 @@ struct HitMyLimitApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window("Hit My Limit Settings", id: "settings") {
+        Window("Settings", id: "settings") {
             SettingsView(model: model)
         }
         .windowResizability(.contentSize)

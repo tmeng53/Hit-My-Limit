@@ -19,6 +19,8 @@ final class Model: ObservableObject {
     @Published var notifyChanges: Bool { didSet { defaults.set(notifyChanges, forKey: "notifyChanges") } }
     @Published var notifyNearLimit: Bool { didSet { defaults.set(notifyNearLimit, forKey: "notifyNearLimit") } }
     @Published var notifyResets: Bool { didSet { defaults.set(notifyResets, forKey: "notifyResets") } }
+    // The providers to show and notify about: anthropic, openai, google.
+    @Published var labs: Set<String> { didSet { defaults.set(Array(labs).sorted(), forKey: "labs") } }
     @Published var openAtLogin: Bool {
         didSet {
             do {
@@ -46,7 +48,8 @@ final class Model: ObservableObject {
 
     init() {
         let d = UserDefaults.standard
-        d.register(defaults: ["notifyChanges": true, "notifyNearLimit": true, "notifyResets": true])
+        d.register(defaults: ["notifyChanges": true, "notifyNearLimit": true, "notifyResets": true, "labs": Options.labOrder])
+        labs = Set(d.stringArray(forKey: "labs") ?? Options.labOrder)
         notifyResets = d.bool(forKey: "notifyResets")
         notifyChanges = d.bool(forKey: "notifyChanges")
         notifyNearLimit = d.bool(forKey: "notifyNearLimit")
@@ -94,7 +97,7 @@ final class Model: ObservableObject {
         }
         let new = list.filter { !seen.contains($0.id) }
         seenChanges = seen.union(new.map(\.id))
-        for c in new where c.lab.map(usedLabs.contains) ?? true {
+        for c in new where c.lab.map(labs.contains) ?? true {
             let lab = c.lab.flatMap { Options.labs[$0] } ?? "Change log"
             if c.isReset {
                 if notifyResets { Notify.post(id: c.id, title: "\(lab): free limit reset", body: c.title, link: c.link) }
@@ -104,41 +107,36 @@ final class Model: ObservableObject {
         }
     }
 
-    // Labs whose tools show up in the logs. Google is always included until Gemini CLI is read.
-    var usedLabs: Set<String> {
-        var labs: Set<String> = ["google"]
-        if status?.claude != nil { labs.insert("anthropic") }
-        if status?.codex != nil { labs.insert("openai") }
-        return labs
-    }
+    var unsent: [Status.Hit] { status?.hits.filter { !$0.sent && labs.contains($0.lab) } ?? [] }
 
-    var unsent: [Status.Hit] { status?.hits.filter { !$0.sent } ?? [] }
+    private var claude: Status.Claude? { labs.contains("anthropic") ? status?.claude : nil }
+    private var codex: Status.Codex? { labs.contains("openai") ? status?.codex : nil }
 
     // How full the fullest limit is, 0 to 1, or nil when the logs don't say. A limit that's been hit counts as full.
     var usedFraction: Double? {
-        guard let s = status else { return nil }
-        if s.claude?.limited_until ?? 0 > Date().timeIntervalSince1970 * 1000 { return 1 }
+        guard status != nil else { return nil }
+        if claude?.limited_until ?? 0 > Date().timeIntervalSince1970 * 1000 { return 1 }
         var best: Double?
-        for l in s.codex?.limits ?? [] { best = max(best ?? 0, l.used / 100) }
-        if let w = s.claude?.window, let typical = w.typical_at_limit, typical > 0 { best = max(best ?? 0, w.tokens / typical) }
+        for l in codex?.limits ?? [] { best = max(best ?? 0, l.used / 100) }
+        if let w = claude?.window, let typical = w.typical_at_limit, typical > 0 { best = max(best ?? 0, w.tokens / typical) }
         return best.map { min(1, $0) }
     }
 
     // The fullest limit, for the menu bar: Codex's own percentage, or Claude Code's tokens against past hits.
     var headline: String {
-        guard let s = status else { return "" }
+        guard status != nil else { return "" }
         var best: (Double, String)?
-        for l in s.codex?.limits ?? [] where best == nil || l.used > best!.0 { best = (l.used, "\(Int(l.used))%") }
-        if let w = s.claude?.window, let typical = w.typical_at_limit, typical > 0 {
+        for l in codex?.limits ?? [] where best == nil || l.used > best!.0 { best = (l.used, "\(Int(l.used))%") }
+        if let w = claude?.window, let typical = w.typical_at_limit, typical > 0 {
             let p = 100 * w.tokens / typical
             if best == nil || p > best!.0 { best = (p, "~\(Int(p.rounded()))%") }
         }
-        if s.claude?.limited_until ?? 0 > Date().timeIntervalSince1970 * 1000 { return "limit" }
+        if claude?.limited_until ?? 0 > Date().timeIntervalSince1970 * 1000 { return "limit" }
         return best?.1 ?? ""
     }
 
     private func warnNearLimit(_ s: Status) {
-        guard notifyNearLimit else { return }
+        guard notifyNearLimit, labs.contains("openai") else { return }
         var w = warned
         for l in s.codex?.limits ?? [] where l.used >= 90 {
             let key = "codex:\(l.window):\(Int(l.resets_at ?? 0))"

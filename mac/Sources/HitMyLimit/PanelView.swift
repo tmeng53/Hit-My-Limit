@@ -5,210 +5,224 @@ struct PanelView: View {
     @ObservedObject var model: Model
     @Environment(\.openWindow) private var openWindow
 
+    private struct Tool {
+        let percent: Double
+        let view: AnyView
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            if let e = model.error { errorCard(e) }
+        VStack(alignment: .leading, spacing: 0) {
+            header.padding(.bottom, 16)
+            if let e = model.error {
+                Label(e, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12)).foregroundStyle(Look.amber)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 14)
+            }
             if let s = model.status {
-                if s.claude == nil && s.codex == nil { empty }
-                if let c = s.claude { claude(c) }
-                if let x = s.codex { codex(x) }
-                if let t = s.trend.first(where: { ratio($0) < 0.85 }) ?? s.trend.first { trend(t) }
-                if !s.hits.isEmpty { hits(s.hits) }
+                let list = tools(s)
+                if list.isEmpty {
+                    Text(model.labs.isEmpty ? "No providers picked. Choose them in Settings." : "No Claude Code or Codex use on this Mac in the last 30 days.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                ForEach(list.indices, id: \.self) { i in
+                    if i > 0 { Divider().padding(.vertical, 16) }
+                    list[i].view
+                }
+                hitStrip(s)
             } else if model.error == nil {
                 ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(20)
             }
-            if !model.changes.isEmpty { changes }
-            share
+            news
+            footer
         }
-        .padding(12)
+        .padding(16)
         .frame(width: 340)
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 28, height: 28)
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Hit My Limit").font(.system(size: 13, weight: .semibold))
-                if let s = model.status {
-                    Text("Updated \(Format.when(date(s.generated_at)))").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-            }
+        HStack(spacing: 10) {
+            Text("Hit My Limit").font(.system(size: 15, weight: .semibold))
             Spacer()
-            Button { Task { await model.refresh(); await model.refreshFeed() } } label: {
-                Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 18, height: 18)
+            if model.loading { ProgressView().controlSize(.mini) }
+            if let s = model.status {
+                Button { Task { await model.refresh(); await model.refreshFeed() } } label: {
+                    Text(Format.when(date(s.generated_at))).font(.system(size: 12)).monospacedDigit()
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary).help("Last updated. Click to refresh.")
             }
-            .iconButton().help("Refresh")
             Button { NSApp.activate(ignoringOtherApps: true); openWindow(id: "settings") } label: {
-                Image(systemName: "gearshape").font(.system(size: 12, weight: .medium)).frame(width: 18, height: 18)
+                Image(systemName: "gearshape").font(.system(size: 13, weight: .medium))
             }
-            .iconButton().help("Settings")
-        }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 2)
-    }
-
-    private func errorCard(_ e: String) -> some View {
-        Card {
-            Label(e, systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
+            .buttonStyle(.plain).foregroundStyle(.secondary).help("Settings")
         }
     }
 
-    private var empty: some View {
-        Card {
-            Text("No Claude Code or Codex use on this Mac in the last 30 days.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-        }
+    // The fullest limit goes first, so the panel leads with the number in the menu bar.
+    private func tools(_ s: Status) -> [Tool] {
+        var list: [Tool] = []
+        if model.labs.contains("anthropic"), let c = s.claude { list.append(claude(c, s)) }
+        if model.labs.contains("openai"), let x = s.codex, let t = codex(x, s) { list.append(t) }
+        return list.sorted { $0.percent > $1.percent }
     }
 
-    private func claude(_ c: Status.Claude) -> some View {
-        Card {
-            CardHeader(symbol: "terminal.fill", title: "Claude Code", tint: Look.claude, badge: Options.planName("anthropic", model.status?.plans["anthropic"]))
-            if let until = c.limited_until, until > Date().timeIntervalSince1970 * 1000 {
-                Label("Limit reached. Resets \(Format.until(date(until))).", systemImage: "hourglass")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(.red)
-            }
-            if let w = c.window {
-                HStack(spacing: 12) {
-                    if let typical = w.typical_at_limit, typical > 0 {
-                        let p = 100 * w.tokens / typical
-                        Ring(fraction: p / 100, tint: p >= 90 ? .red : Look.claude, label: "\(Int(p.rounded()))%")
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("5-hour window").font(.system(size: 11)).foregroundStyle(.secondary)
-                        Text("\(Format.tokens(w.tokens)) tokens")
-                            .font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
-                        Text("Resets \(Format.until(date(w.resets_at)))").font(.system(size: 11)).foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
+    private func claude(_ c: Status.Claude, _ s: Status) -> Tool {
+        let plan = Options.planName("anthropic", s.plans["anthropic"])
+        let chip = trendChip(s, "anthropic")
+        let note = "Compared with the tokens you had used when you hit this limit before. Claude app use isn't in the logs, so it isn't counted."
+        if let until = c.limited_until, until > Date().timeIntervalSince1970 * 1000 {
+            return Tool(percent: 100, view: AnyView(ToolBlock(
+                dot: Look.claude, name: "Claude Code", plan: plan, resets: "resets \(Format.until(date(until)))",
+                big: "100", unit: "%", detail: Text("Limit reached"), percent: 100, tint: Look.minus, chip: chip
+            ) { EmptyView() }))
+        }
+        guard let w = c.window else {
+            return Tool(percent: 0, view: AnyView(ToolBlock(
+                dot: Look.claude, name: "Claude Code", plan: plan, resets: nil,
+                big: "0", unit: "tokens", detail: Text("No 5-hour window open\n\(Format.tokens(c.week_tokens)) in the last 7 days"),
+                percent: nil, tint: Look.claude, chip: chip
+            ) { EmptyView() }))
+        }
+        let resets = "resets \(Format.until(date(w.resets_at)))"
+        guard let typical = w.typical_at_limit, typical > 0 else {
+            return Tool(percent: 0, view: AnyView(ToolBlock(
+                dot: Look.claude, name: "Claude Code", plan: plan, resets: resets,
+                big: Format.tokens(w.tokens), unit: "tokens",
+                detail: Text("No earlier limit hits\nto compare with yet"), percent: nil, tint: Look.claude, chip: chip, help: note
+            ) { EmptyView() }))
+        }
+        let p = 100 * w.tokens / typical
+        let detail = Text(Format.tokens(w.tokens)).fontWeight(.semibold).foregroundColor(.primary)
+            + Text(" of your usual \(Format.tokens(typical))\ntokens this window")
+        return Tool(percent: p, view: AnyView(ToolBlock(
+            dot: Look.claude, name: "Claude Code", plan: plan, resets: resets,
+            big: "\(Int(p.rounded()))", unit: "%", detail: detail, percent: p, tint: Look.bar(p, Look.claude), chip: chip, help: note
+        ) { EmptyView() }))
+    }
+
+    private func codex(_ x: Status.Codex, _ s: Status) -> Tool? {
+        let sorted = x.limits.sorted { $0.used > $1.used }
+        guard let top = sorted.first else { return nil }
+        let name = { (l: Status.CodexLimit) in l.window == "5h" ? "5-hour" : Options.windows[l.window] ?? l.window }
+        let rest = Array(sorted.dropFirst())
+        return Tool(percent: top.used, view: AnyView(ToolBlock(
+            dot: Look.ink, name: "Codex", plan: Options.planName("openai", x.plan ?? s.plans["openai"]),
+            resets: top.resets_at.map { "\(name(top)) resets \(Format.until(date($0)))" },
+            big: "\(Int(top.used.rounded()))", unit: "%", detail: Text("of \(name(top)) limit"),
+            percent: top.used, tint: Look.bar(top.used, Look.ink), chip: trendChip(s, "openai")
+        ) {
+            ForEach(rest, id: \.window) { l in
+                HStack(spacing: 10) {
+                    Text(name(l).capitalized).font(.system(size: 12)).foregroundStyle(.secondary)
+                    Bar(fraction: l.used / 100, tint: Look.bar(l.used, .secondary), height: 4)
+                    Text("\(Int(l.used.rounded()))%").font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                        .frame(minWidth: 34, alignment: .trailing)
                 }
-                if let typical = w.typical_at_limit, typical > 0 {
-                    Text("\(Int((100 * w.tokens / typical).rounded()))% of the \(Format.tokens(typical)) tokens you usually reach before this limit. Claude app use isn't counted.")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+                .help(l.resets_at.map { "Resets \(Format.until(date($0)))" } ?? "")
+            }
+        }))
+    }
+
+    // Fewer tokens before the limit this week than before is what a quiet cut looks like. Small changes are noise.
+    private func trendChip(_ s: Status, _ lab: String) -> TrendChip? {
+        guard let t = s.trend.first(where: { $0.lab == lab && $0.window == "5h" }) ?? s.trend.first(where: { $0.lab == lab }),
+              let r = t.recent.tokens, let e = t.earlier.tokens, e > 0 else { return nil }
+        let change = Int((abs(1 - r / e) * 100).rounded())
+        guard change >= 15 else { return nil }
+        let detail = "This week you hit it at \(Format.tokens(r)) tokens, before at \(Format.tokens(e)). From \(t.recent.n + t.earlier.n) of your own limit hits."
+        return TrendChip(text: "Limit hit \(change)% \(r < e ? "sooner" : "later") this week", sooner: r < e, detail: detail)
+    }
+
+    // One bar per day for the last 30 days, tall on days you hit a limit.
+    @ViewBuilder private func hitStrip(_ s: Status) -> some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let first = cal.date(byAdding: .day, value: -29, to: today)!
+        let hits = s.hits.filter { model.labs.contains($0.lab) && date($0.hit) >= first }
+        if !hits.isEmpty {
+            let days: [[Status.Hit]] = (0..<30).map { i in
+                let d = cal.date(byAdding: .day, value: i, to: first)!
+                return hits.filter { cal.isDate(date($0.hit), inSameDayAs: d) }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    SectionTitle("Limit hits, last 30 days")
+                    Spacer()
+                    Text("\(hits.count)").font(.system(size: 13, weight: .semibold)).monospacedDigit()
                 }
-            } else {
-                Text("No 5-hour window open.").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            HStack {
-                Text("Last 7 days").font(.system(size: 12)).foregroundStyle(.secondary)
-                Spacer()
-                Text("\(Format.tokens(c.week_tokens)) tokens").font(.system(size: 12, weight: .medium)).monospacedDigit()
-            }
-        }
-    }
-
-    private func codex(_ x: Status.Codex) -> some View {
-        Card {
-            CardHeader(symbol: "chevron.left.forwardslash.chevron.right", title: "Codex", tint: Look.codex, badge: Options.planName("openai", x.plan))
-            ForEach(x.limits, id: \.window) { l in
-                Meter(
-                    title: l.window == "5h" ? "5-hour" : (Options.windows[l.window] ?? l.window).capitalized,
-                    percent: l.used,
-                    detail: l.resets_at.map { "resets \(Format.until(date($0)))" }
-                )
-            }
-        }
-    }
-
-    private func ratio(_ t: Status.Trend) -> Double {
-        guard let r = t.recent.tokens, let e = t.earlier.tokens, e > 0 else { return 1 }
-        return r / e
-    }
-
-    // Fewer tokens before the limit this week than before is what a quiet cut looks like.
-    private func trend(_ t: Status.Trend) -> some View {
-        let r = ratio(t)
-        let down = r < 0.85, up = r > 1.15
-        let name = t.lab == "anthropic" ? "Claude Code" : "Codex"
-        let change = Int((abs(1 - r) * 100).rounded())
-        return Card {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: down ? "arrow.down.right" : up ? "arrow.up.right" : "equal")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(down ? Look.minus : up ? Look.plus : .secondary)
-                    .frame(width: 26, height: 26)
-                    .background((down ? Look.minus : up ? Look.plus : Color.secondary).opacity(0.14), in: Circle())
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(down ? "\(name) limit came \(change)% sooner" : up ? "\(name) limit came \(change)% later" : "\(name) limit about the same")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("This week you hit it at \(Format.tokens(t.recent.tokens ?? 0)) tokens, before at \(Format.tokens(t.earlier.tokens ?? 0)). From \(t.recent.n + t.earlier.n) of your own hits.")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    private func hits(_ list: [Status.Hit]) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            SectionTitle(text: "Limit hits")
-            ForEach(list.prefix(4)) { h in
-                HStack(spacing: 8) {
-                    Circle().fill(Look.lab(h.lab)).frame(width: 7, height: 7)
-                    Text(Options.products[h.product] ?? h.product).font(.system(size: 12)).lineLimit(1)
-                    Text("\(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window) · \(Format.duration(minutes: (h.hit - h.start) / 60000))")
-                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(Format.ago(date(h.hit))).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .padding(.horizontal, 8).padding(.vertical, 4)
-            }
-        }
-    }
-
-    private var changes: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                SectionTitle(text: "Limit changes and resets")
-                Spacer()
-                Button("All") { Links.open(Links.site) }.buttonStyle(.link).font(.system(size: 11)).padding(.trailing, 4)
-            }
-            .padding(.bottom, 2)
-            ForEach(model.changes.prefix(3)) { c in
-                HoverRow(action: { Links.open(c.link ?? Links.site) }) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 5) {
-                            Text(c.lab.flatMap { Options.labs[$0] } ?? "Change")
-                                .font(.system(size: 10, weight: .semibold)).foregroundStyle(Look.lab(c.lab))
-                            if c.isReset {
-                                Text("Free reset")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(Look.plus.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(Look.plus)
-                            }
-                            if let d = c.date { Text(Format.ago(d)).font(.system(size: 10)).foregroundStyle(.tertiary) }
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(0..<30, id: \.self) { i in
+                        if let h = days[i].first {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Look.lab(h.lab))
+                                .frame(maxWidth: .infinity).frame(height: 20)
+                                .help(days[i].map(describe).joined(separator: "\n"))
+                        } else {
+                            Capsule().fill(.primary.opacity(0.12)).frame(maxWidth: .infinity).frame(height: 3)
                         }
-                        Text(c.title).font(.system(size: 12)).lineLimit(2).multilineTextAlignment(.leading)
                     }
                 }
+                .frame(height: 20, alignment: .bottom)
+                HStack {
+                    Text(Format.day(first))
+                    Spacer()
+                    Text("today")
+                }
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
             }
+            .padding(.top, 22)
         }
     }
 
-    @ViewBuilder private var share: some View {
+    private func describe(_ h: Status.Hit) -> String {
+        let window = h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window
+        return "\(Options.products[h.product] ?? h.product) \(window) limit after \(Format.duration(minutes: (h.hit - h.start) / 60000)), \(Format.when(date(h.hit)))"
+    }
+
+    @ViewBuilder private var news: some View {
+        let list = Array(model.changes.filter { $0.lab.map(model.labs.contains) ?? true }.prefix(3))
+        if !list.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    SectionTitle("News")
+                    Spacer()
+                    Button("See all") { Links.open(Links.site) }
+                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 4)
+                ForEach(list) { c in
+                    HoverRow(action: { Links.open(c.link ?? Links.site) }) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            let lab = c.lab.flatMap { Options.labs[$0] } ?? "Change log"
+                            Text(c.isReset ? "Free reset · \(lab)" : lab)
+                                .font(.system(size: 11, weight: c.isReset ? .semibold : .regular))
+                                .foregroundStyle(c.isReset ? Look.plus : Color.secondary)
+                            Text(c.title).font(.system(size: 13)).lineLimit(2).multilineTextAlignment(.leading)
+                        }
+                        Spacer(minLength: 8)
+                        if let d = c.date { Text(Format.day(d)).font(.system(size: 11)).foregroundStyle(.secondary) }
+                    }
+                    .padding(.horizontal, -8)
+                }
+            }
+            .padding(.top, 22)
+        }
+    }
+
+    @ViewBuilder private var footer: some View {
         let n = model.unsent.count
         if n > 0 {
-            VStack(spacing: 6) {
-                Button {
+            Divider().padding(.top, 14)
+            HStack {
+                Text(n == 1 ? "1 new limit hit" : "\(n) new limit hits").font(.system(size: 13)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Share") {
                     NSApp.activate(ignoringOtherApps: true)
                     openWindow(id: "share")
-                } label: {
-                    Text("Share \(n) new limit \(n == 1 ? "hit" : "hits")").frame(maxWidth: .infinity)
                 }
-                .primaryButton()
-                Text("Optional. Reports from many people show when a plan's limit shrinks without an announcement.")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                .inkButton()
             }
-            .padding(.top, 4)
+            .padding(.top, 12)
         }
     }
 }
