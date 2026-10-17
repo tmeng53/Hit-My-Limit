@@ -108,40 +108,40 @@ const base = {
 
 const jokes = {
   en: {
-    kicker: { tighter: "No, you're not imagining it.", looser: 'Good news, for once.', mixed: 'It depends who you ask.' }[overall],
-    sub: 'How long people last in a 5-hour window before the AI taps out. Reported by people staring at a reset timer, not official numbers.',
+    kicker: { tighter: "You'll be touching grass sooner.", looser: 'Less grass this month.', mixed: 'Grass forecast: mixed.' }[overall],
+    sub: 'How long people last in a 5-hour window before the bar fills up and there is nothing left to do but go outside. Self-reported, not official numbers.',
     stats: [
       [n(data.reports), 'reports'],
-      [n(data.people), 'people who hit the wall'],
+      [n(data.people), 'people sent outside'],
       [nowFelt ? `${nowFelt.pct}%` : '–', 'said “wait, already?” last week'],
     ],
-    lost: (m: number) => `That's ${Math.round(m)} minutes of coding, gone.`,
-    noData: "Nobody's hit it yet.",
+    lost: (m: number) => `That's ${Math.round(m)} extra minutes of grass.`,
+    noData: "Nobody's been sent outside yet.",
     noDataHint: 'Or nobody is using it. Be the first',
-    chartTitle: 'Time until “You’ve hit your limit”',
-    chartSub: 'Median by week. Ticks are plan changes. Down is the bad direction.',
+    chartTitle: 'Time until you’re sent outside',
+    chartSub: 'Median time before “You’ve hit your limit”, by week. Ticks are plan changes. Down means more grass.',
     changesTitle: 'Recent fine print',
-    shareTitle: 'Just got cut off? Misery loves company.',
-    shareSub: 'Add your limit hit. It takes a minute and makes the numbers above harder to argue with. Nothing personal is sent.',
-    webHint: 'Six fields. Faster than waiting for the reset.',
+    shareTitle: 'Touching grass right now? Tell us how long you lasted.',
+    shareSub: 'It takes a minute, and you have time until the reset. Nothing personal is sent.',
+    webHint: 'Six fields. Then go outside.',
   },
   zh: {
-    kicker: { tighter: '不是你的错觉。', looser: '难得的好消息。', mixed: '看你问谁了。' }[overall],
-    sub: '在 5 小时额度周期里，大家用多久会被 AI 喊停。由盯着重置倒计时的人们自行报告，不是官方数字。',
+    kicker: { tighter: '出门摸草的时间提前了。', looser: '这个月可以少摸点草。', mixed: '摸草预报：多云。' }[overall],
+    sub: '在 5 小时额度周期里，大家用多久会把额度用满，然后只能出门摸草。由用户自行报告，不是官方数字。',
     stats: [
       [n(data.reports), '份报告'],
-      [n(data.people), '人撞过墙'],
+      [n(data.people), '人被赶出门摸草'],
       [nowFelt ? `${nowFelt.pct}%` : '–', '的人上周说「这么快就没了？」'],
     ],
-    lost: (m: number) => `少写了 ${Math.round(m)} 分钟代码。`,
-    noData: '还没人撞上。',
+    lost: (m: number) => `多摸了 ${Math.round(m)} 分钟草。`,
+    noData: '还没人被赶出门。',
     noDataHint: '也可能是还没人用。来当第一个',
-    chartTitle: '多久会看到「You’ve hit your limit」',
-    chartSub: '每周中位数。刻度是方案变化。往下走就是坏消息。',
+    chartTitle: '多久会被赶出去摸草',
+    chartSub: '看到「You’ve hit your limit」前的用时，每周中位数。刻度是方案变化。往下走就是多摸草。',
     changesTitle: '最近的小字条款',
-    shareTitle: '刚被限额了？来吐个槽。',
-    shareSub: '分享一次触发上限，只要一分钟，上面的数字就更难反驳。不会发送任何个人信息。',
-    webHint: '六个字段，比等重置快多了。',
+    shareTitle: '正在摸草？说说你撑了多久。',
+    shareSub: '只要一分钟，反正离重置还早。不会发送任何个人信息。',
+    webHint: '六个字段，填完就去摸草。',
   },
 }[lang];
 const text = { ...base, kicker: null as string | null, lost: null as ((m: number) => string) | null, ...(fun ? jokes : {}) };
@@ -187,7 +187,12 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
 <div class="rich">
 <section class="hero">
   {data.sample && <span class="tag">{text.sample}</span>}
-  <h1><span class={`badge ${overall}`}>{overall === 'tighter' ? MARK.tighter : overall === 'looser' ? MARK.looser : MARK.mixed}</span>{text.kicker ?? text.headline}</h1>
+  <h1>{fun ? (
+    <svg class="grass-mark" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="9" y="38" width="46" height="12" rx="3" class="bar" />
+      <path d="M17 38 Q16 30 12 25 M24 38 Q24 27 28 20 M31 38 Q33 31 38 28 M44 38 Q43 30 47 23 M50 38 Q51 34 54 32" class="blades" />
+    </svg>
+  ) : <span class={`badge ${overall}`}>{overall === 'tighter' ? MARK.tighter : overall === 'looser' ? MARK.looser : MARK.mixed}</span>}{text.kicker ?? text.headline}</h1>
   {text.kicker && <p class="kicker">{text.headline}</p>}
   <p class="sub">{text.sub}</p>
   <dl class="stats">
@@ -251,6 +256,10 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
       </g>
     ))}
     <line x1={g.L} x2={g.W - g.R} y1={g.y(0)} y2={g.y(0)} class="base" />
+    {fun && <path class="tufts" d={Array.from({ length: Math.floor((g.W - g.L - g.R) / 18) }, (_, k) => {
+      const x = g.L + 9 + k * 18, y = g.y(0), h = 5 + ((k * 7) % 4);
+      return `M${x - 3},${y} q-1,-${h - 1} -3,-${h} M${x},${y} q0,-${h + 2} 2,-${h + 3} M${x + 3},${y} q1,-${h - 2} 3,-${h - 1}`;
+    }).join(' ')} />}
     {weeks.map((w, i) => i % g.every === 0 && <text x={g.x(i)} y={g.H - 8} class="axis" text-anchor="middle">{weekLabel(w)}</text>)}
     {events.map(({ c, i }) => (
       <g class="event">
@@ -371,6 +380,10 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .badge.tighter { color: var(--minus); background: color-mix(in srgb, var(--minus) 12%, transparent); }
   .badge.looser { color: var(--plus); background: color-mix(in srgb, var(--plus) 12%, transparent); }
   .badge.mixed { color: var(--muted); background: var(--panel); }
+  .grass-mark { flex: none; width: 60px; height: 60px; border-radius: 14px; background: var(--panel); border: 1px solid var(--panel-line); }
+  .grass-mark .bar { fill: var(--fg); }
+  .grass-mark .blades { fill: none; stroke: var(--plus); stroke-width: 3.5; stroke-linecap: round; }
+  .tufts { fill: none; stroke: var(--plus); stroke-width: 1.4; stroke-linecap: round; opacity: 0.55; }
   .kicker { margin: -4px 0 14px; font: 500 24px/1.3 var(--sans); }
   .quip { margin-top: 8px; font: 15px/1.4 var(--sans); }
   .sub { margin: 0; max-width: 60ch; color: var(--muted); font: 16px/1.55 var(--sans); }
@@ -443,6 +456,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
     .hero { padding: 28px 0 0; }
     h1 { font-size: 30px; gap: 12px; }
     .kicker { font-size: 19px; }
+    .grass-mark { width: 44px; height: 44px; border-radius: 11px; }
     .badge { width: 40px; height: 40px; font-size: 26px; border-radius: 11px; }
     .stats { gap: 8px 24px; }
     .stats dt { font-size: 19px; }
