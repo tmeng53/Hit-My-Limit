@@ -124,9 +124,16 @@ async function main() {
       return console.log('\nAll of these were already sent. Use --pick to send one again.');
     }
 
-    const lastPlan = state.plans[c.lab] ?? c.plan ?? undefined;
-    const plan = await ask(`Your ${c.lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan:`, PLANS[c.lab], lastPlan, o.plan);
-    if (!rl && !o.plan && !lastPlan) throw new Error('Pass --plan when not running interactively');
+    // The plan logged at the time of the hit wins. Otherwise the last answer is only a suggestion, since people
+    // change plans; without a prompt to confirm it, --plan is required.
+    if (!rl && !o.plan && !c.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
+    const suggested = c.plan ?? state.plans[c.lab] ?? undefined;
+    const plan = await ask(
+      `Your ${c.lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan on ${isoDay(new Date(c.hit))}, when you hit the limit:`,
+      PLANS[c.lab],
+      suggested,
+      o.plan,
+    );
     const work = await ask('Kind of work:', WORK, 'coding', o.work);
     const account = await ask('Account:', ACCOUNTS, 'own', o.account);
 
