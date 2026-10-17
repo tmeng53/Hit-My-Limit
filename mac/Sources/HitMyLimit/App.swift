@@ -17,14 +17,19 @@ struct HitMyLimitApp: App {
         } label: {
             // A gauge, plus the fullest limit when the logs show one.
             HStack(spacing: 3) {
-                Image(systemName: "gauge.with.dots.needle.33percent")
-                if !model.headline.isEmpty { Text(model.headline) }
+                Image(systemName: "gauge.with.dots.needle.67percent")
+                if !model.headline.isEmpty { Text(model.headline).monospacedDigit() }
             }
         }
         .menuBarExtraStyle(.window)
 
         Window("Share limit hits", id: "share") {
             ShareView(model: model)
+        }
+        .windowResizability(.contentSize)
+
+        Window("Hit My Limit Settings", id: "settings") {
+            SettingsView(model: model)
         }
         .windowResizability(.contentSize)
     }

@@ -6,134 +6,182 @@ struct PanelView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
-            if let e = model.error { Text(e).foregroundColor(Look.minus).fixedSize(horizontal: false, vertical: true) }
+            if let e = model.error { errorCard(e) }
             if let s = model.status {
-                if s.claude == nil && s.codex == nil {
-                    Text("No Claude Code or Codex logs from the last 30 days on this Mac.").foregroundColor(Look.muted)
-                }
+                if s.claude == nil && s.codex == nil { empty }
                 if let c = s.claude { claude(c) }
                 if let x = s.codex { codex(x) }
-                if !s.trend.isEmpty { trend(s.trend) }
+                if let t = s.trend.first(where: { ratio($0) < 0.85 }) ?? s.trend.first { trend(t) }
                 if !s.hits.isEmpty { hits(s.hits) }
             } else if model.error == nil {
-                Text("Reading logs...").foregroundColor(Look.muted)
+                ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(20)
             }
             if !model.changes.isEmpty { changes }
             share
-            Divider()
-            footer
         }
-        .font(Look.font)
-        .padding(14)
-        .frame(width: 380)
+        .padding(12)
+        .frame(width: 340)
     }
 
     private var header: some View {
-        HStack {
-            Text("hitmylimit").font(Look.bold)
+        HStack(spacing: 8) {
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Hit My Limit").font(.system(size: 13, weight: .semibold))
+                if let s = model.status {
+                    Text("Updated \(Format.when(date(s.generated_at)))").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
             Spacer()
-            if let s = model.status { Text("updated \(Format.when(date(s.generated_at)))").foregroundColor(Look.muted).font(Look.small) }
+            Button { Task { await model.refresh(); await model.refreshFeed() } } label: {
+                Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 18, height: 18)
+            }
+            .iconButton().help("Refresh")
+            Button { NSApp.activate(ignoringOtherApps: true); openWindow(id: "settings") } label: {
+                Image(systemName: "gearshape").font(.system(size: 12, weight: .medium)).frame(width: 18, height: 18)
+            }
+            .iconButton().help("Settings")
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 2)
+    }
+
+    private func errorCard(_ e: String) -> some View {
+        Card {
+            Label(e, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func section(_ title: String) -> some View {
-        Text(title).font(Look.bold)
-    }
-
-    private func row(_ label: String, _ value: String, _ note: String? = nil) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label.padding(toLength: 8, withPad: " ", startingAt: 0))
-            Text(value)
-            Spacer(minLength: 0)
-            if let note { Text(note).foregroundColor(Look.muted) }
+    private var empty: some View {
+        Card {
+            Text("No Claude Code or Codex use on this Mac in the last 30 days.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
         }
     }
 
     private func claude(_ c: Status.Claude) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            section("Claude Code")
+        Card {
+            CardHeader(symbol: "terminal.fill", title: "Claude Code", tint: Look.claude, badge: Options.planName("anthropic", model.status?.plans["anthropic"]))
             if let until = c.limited_until, until > Date().timeIntervalSince1970 * 1000 {
-                row("limit", "reached", "resets \(Format.when(date(until)))").foregroundColor(Look.minus)
+                Label("Limit reached. Resets \(Format.until(date(until))).", systemImage: "hourglass")
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(.red)
             }
             if let w = c.window {
-                row("5-hour", "\(Format.tokens(w.tokens)) tokens", "resets \(Format.when(date(w.resets_at)))")
+                HStack(spacing: 12) {
+                    if let typical = w.typical_at_limit, typical > 0 {
+                        let p = 100 * w.tokens / typical
+                        Ring(fraction: p / 100, tint: p >= 90 ? .red : Look.claude, label: "\(Int(p.rounded()))%")
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("5-hour window").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text("\(Format.tokens(w.tokens)) tokens")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
+                        Text("Resets \(Format.until(date(w.resets_at)))").font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
                 if let typical = w.typical_at_limit, typical > 0 {
-                    Text("        ~\(Int((100 * w.tokens / typical).rounded()))% of the \(Format.tokens(typical)) you used before hitting it (\(w.past_hits) \(w.past_hits == 1 ? "time" : "times"))")
-                        .foregroundColor(Look.muted).font(Look.small).fixedSize(horizontal: false, vertical: true)
+                    Text("Ring: share of the \(Format.tokens(typical)) tokens you'd used when you last hit this limit.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
-                row("5-hour", "no open window")
+                Text("No 5-hour window open.").font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            row("7 days", "\(Format.tokens(c.week_tokens)) tokens")
+            HStack {
+                Text("Last 7 days").font(.system(size: 12)).foregroundStyle(.secondary)
+                Spacer()
+                Text("\(Format.tokens(c.week_tokens)) tokens").font(.system(size: 12, weight: .medium)).monospacedDigit()
+            }
         }
     }
 
     private func codex(_ x: Status.Codex) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                section("Codex")
-                if let p = Options.planName("openai", x.plan) { Text(p).foregroundColor(Look.muted) }
-            }
+        Card {
+            CardHeader(symbol: "chevron.left.forwardslash.chevron.right", title: "Codex", tint: Look.codex, badge: Options.planName("openai", x.plan))
             ForEach(x.limits, id: \.window) { l in
-                row(Options.windows[l.window] ?? l.window, "\(Format.bar(l.used)) \(Int(l.used))%", l.resets_at.map { "resets \(Format.when(date($0)))" })
-                    .foregroundColor(l.used >= 90 ? Look.minus : .primary)
+                Meter(
+                    title: l.window == "5h" ? "5-hour" : (Options.windows[l.window] ?? l.window).capitalized,
+                    percent: l.used,
+                    detail: l.resets_at.map { "resets \(Format.until(date($0)))" }
+                )
             }
-            Text("as of \(Format.when(date(x.as_of))), from Codex's own logs").foregroundColor(Look.muted).font(Look.small)
         }
     }
 
-    // − fewer tokens before the limit than before, + more, · about the same.
-    private func trend(_ list: [Status.Trend]) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            section("Tokens before you hit the limit")
-            ForEach(list) { t in
-                let recent = t.recent.tokens ?? 0, earlier = t.earlier.tokens ?? 0
-                let ratio = earlier > 0 ? recent / earlier : 1
-                let sign = ratio < 0.85 ? "−" : ratio > 1.15 ? "+" : "·"
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(sign).foregroundColor(sign == "−" ? Look.minus : sign == "+" ? Look.plus : Look.muted)
-                    Text("\(t.lab == "anthropic" ? "Claude Code" : "Codex") \(Options.windows[t.window] ?? t.window): \(Format.tokens(recent)) this week, \(Format.tokens(earlier)) before")
+    private func ratio(_ t: Status.Trend) -> Double {
+        guard let r = t.recent.tokens, let e = t.earlier.tokens, e > 0 else { return 1 }
+        return r / e
+    }
+
+    // Fewer tokens before the limit this week than before is what a quiet cut looks like.
+    private func trend(_ t: Status.Trend) -> some View {
+        let r = ratio(t)
+        let down = r < 0.85, up = r > 1.15
+        let name = t.lab == "anthropic" ? "Claude Code" : "Codex"
+        let change = Int((abs(1 - r) * 100).rounded())
+        return Card {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: down ? "arrow.down.right" : up ? "arrow.up.right" : "equal")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(down ? Look.minus : up ? Look.plus : .secondary)
+                    .frame(width: 26, height: 26)
+                    .background((down ? Look.minus : up ? Look.plus : Color.secondary).opacity(0.14), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(down ? "\(name) limit came \(change)% sooner" : up ? "\(name) limit came \(change)% later" : "\(name) limit about the same")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("This week you hit it at \(Format.tokens(t.recent.tokens ?? 0)) tokens, before at \(Format.tokens(t.earlier.tokens ?? 0)). From \(t.recent.n + t.earlier.n) of your own hits.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Text("Medians of your own hits: \(list.map { "\($0.recent.n) vs \($0.earlier.n)" }.joined(separator: ", ")).")
-                .foregroundColor(Look.muted).font(Look.small)
         }
     }
 
     private func hits(_ list: [Status.Hit]) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            section("Your limit hits, last 30 days")
-            ForEach(list.prefix(5)) { h in
+        VStack(alignment: .leading, spacing: 2) {
+            SectionTitle(text: "Limit hits")
+            ForEach(list.prefix(4)) { h in
                 HStack(spacing: 8) {
-                    Text(Format.day(date(h.hit)))
-                    Text("\(Options.products[h.product] ?? h.product) \(Options.windows[h.window] ?? h.window)")
-                    Spacer(minLength: 0)
-                    Text(Format.duration(minutes: (h.hit - h.start) / 60000)).foregroundColor(Look.muted)
-                    Text(h.sent ? "sent" : "new").foregroundColor(h.sent ? Look.muted : Look.plus)
+                    Circle().fill(Look.lab(h.lab)).frame(width: 7, height: 7)
+                    Text("\(Options.products[h.product] ?? h.product) · \(h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window)")
+                        .font(.system(size: 12))
+                    Spacer(minLength: 4)
+                    Text("after \(Format.duration(minutes: (h.hit - h.start) / 60000))").font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+                    Text(Format.ago(date(h.hit))).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .frame(width: 74, alignment: .trailing)
                 }
+                .padding(.horizontal, 8).padding(.vertical, 4)
             }
-            if list.count > 5 { Text("and \(list.count - 5) more").foregroundColor(Look.muted).font(Look.small) }
         }
     }
 
     private var changes: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            section("Change log")
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                SectionTitle(text: "Limit changes")
+                Spacer()
+                Button("All") { Links.open(Links.site) }.buttonStyle(.link).font(.system(size: 11)).padding(.trailing, 4)
+            }
+            .padding(.bottom, 2)
             ForEach(model.changes.prefix(3)) { c in
-                Button {
-                    if let l = c.link { Links.open(l) }
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(c.date.map(Format.day) ?? "").foregroundColor(Look.muted)
-                        Text("\(c.lab.flatMap { Options.labs[$0] }.map { "\($0): " } ?? "")\(c.title)")
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
+                HoverRow(action: { Links.open(c.link ?? Links.site) }) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 5) {
+                            Text(c.lab.flatMap { Options.labs[$0] } ?? "Change")
+                                .font(.system(size: 10, weight: .semibold)).foregroundStyle(Look.lab(c.lab))
+                            if let d = c.date { Text(Format.ago(d)).font(.system(size: 10)).foregroundStyle(.tertiary) }
+                        }
+                        Text(c.title).font(.system(size: 12)).lineLimit(2).multilineTextAlignment(.leading)
                     }
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -141,31 +189,20 @@ struct PanelView: View {
     @ViewBuilder private var share: some View {
         let n = model.unsent.count
         if n > 0 {
-            VStack(alignment: .leading, spacing: 4) {
-                Button("Share \(n) new \(n == 1 ? "hit" : "hits") with hitmylimit.com") {
+            VStack(spacing: 6) {
+                Button {
                     NSApp.activate(ignoringOtherApps: true)
                     openWindow(id: "share")
+                } label: {
+                    Text("Share \(n) new limit \(n == 1 ? "hit" : "hits")").frame(maxWidth: .infinity)
                 }
-                Text("Optional. Reports from many people show when a plan's limit gets smaller without an announcement. You see the exact data first.")
-                    .foregroundColor(Look.muted).font(Look.small).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Toggle("Notify me when a lab changes its limits", isOn: $model.notifyChanges)
-            Toggle("Notify me at 90% of a Codex limit", isOn: $model.notifyNearLimit)
-            Toggle("Open at login", isOn: $model.openAtLogin)
-            HStack {
-                Button("Refresh") { Task { await model.refresh(); await model.refreshFeed() } }
-                Button("Limits by plan") { Links.open(Links.limits) }
-                Spacer()
-                Button("Quit") { NSApp.terminate(nil) }
+                .primaryButton()
+                Text("Optional. Reports from many people show when a plan's limit shrinks without an announcement.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.top, 4)
         }
-        .toggleStyle(.checkbox)
-        .font(Look.small)
     }
 }

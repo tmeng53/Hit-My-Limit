@@ -65,14 +65,28 @@ enum Preview {
         model.status = sampleStatus()
         model.changes = sampleChanges
         guard let screen = NSScreen.main?.visibleFrame else { return }
-        let panel = window(PanelView(model: model).background(Color(nsColor: .windowBackgroundColor)), title: "Panel")
-        panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 40, y: screen.maxY - 10))
-        let share = window(ShareView(model: model, sample: sampleReport).background(Color(nsColor: .windowBackgroundColor)), title: "Share limit hits")
+        // The panel as the menu bar shows it: a rounded popover on the system material.
+        // The panel as the menu bar shows it, a rounded popover on the system material, over a wallpaper-like
+        // backdrop so the material has something to show.
+        let panelView = ZStack {
+            LinearGradient(colors: [Color(red: 0.35, green: 0.45, blue: 0.85), Color(red: 0.75, green: 0.45, blue: 0.7), Color(red: 0.95, green: 0.65, blue: 0.45)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            PanelView(model: model)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
+                .padding(28)
+        }
+        .fixedSize()
+        let panel = window(panelView, title: "Panel")
+        panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY))
+        let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
+        let settings = window(SettingsView(model: model), title: "Hit My Limit Settings")
+        settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
         NSApp.activate(ignoringOtherApps: true)
         // Window numbers for `screencapture -l`.
         if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
-            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
         }
     }
 
