@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   draft:
-    if: contains(github.event.issue.labels.*.name, 'submission')
+    if: contains(github.event.issue.labels.*.name, 'submission') && github.event.issue.state == 'open'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,18 +24,25 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
       - if: steps.entry.outputs.ok == 'true'
+        id: pr
         uses: peter-evans/create-pull-request@v7
         with:
           branch: submission/${{ github.event.issue.number }}
           commit-message: "Add change: ${{ steps.entry.outputs.title }}"
-          title: "Change: ${{ steps.entry.outputs.title }}"
+          title: "${{ steps.entry.outputs.labels == 'submission,reset' && 'Free reset' || 'Change' }}: ${{ steps.entry.outputs.title }}"
           body: |
             Drafted from #${{ github.event.issue.number }}. Merging publishes it to the site.
 
             ${{ steps.entry.outputs.notes }}
 
             Closes #${{ github.event.issue.number }}
-          labels: submission
+          labels: ${{ steps.entry.outputs.labels }}
+      # Free resets from a lab's own site or X account go live without waiting for review.
+      - if: steps.entry.outputs.fast == 'true' && steps.pr.outputs.pull-request-number
+        run: gh pr merge "$PR" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
       - if: steps.entry.outputs.ok == 'false'
         uses: actions/github-script@v7
         env:
