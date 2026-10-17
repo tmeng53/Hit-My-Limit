@@ -7,8 +7,10 @@ interface Props {
   lang: Lang;
   data: HomeData;
   changes: Change[];
+  // Funnier copy, same numbers.
+  fun?: boolean;
 }
-const { lang, data, changes } = Astro.props;
+const { lang, data, changes, fun = false } = Astro.props;
 const prefix = lang === 'zh' ? '/zh' : '';
 const n = (x: number) => x.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US');
 const labName = (lab: string) => (LABS as Record<string, { en: string; zh: string }>)[lab]?.[lang] ?? lab;
@@ -35,7 +37,7 @@ const known = verdicts.filter((v) => v.dir);
 const overall = known.every((v) => v.dir === 'tighter') ? 'tighter' : known.every((v) => v.dir === 'looser') ? 'looser' : 'mixed';
 const nowFelt = data.sooner.at(-1);
 
-const text = {
+const base = {
   en: {
     headline: { tighter: 'Usage limits are getting tighter', looser: 'Usage limits are getting looser', mixed: 'Usage limits are changing' }[overall],
     sub: 'How long people last in a 5-hour window before hitting the limit. Self-reported, not official numbers.',
@@ -104,6 +106,46 @@ const text = {
   },
 }[lang];
 
+const jokes = {
+  en: {
+    kicker: { tighter: "No, you're not imagining it.", looser: 'Good news, for once.', mixed: 'It depends who you ask.' }[overall],
+    sub: 'How long people last in a 5-hour window before the AI taps out. Reported by people staring at a reset timer, not official numbers.',
+    stats: [
+      [n(data.reports), 'reports'],
+      [n(data.people), 'people who hit the wall'],
+      [nowFelt ? `${nowFelt.pct}%` : '–', 'said “wait, already?” last week'],
+    ],
+    lost: (m: number) => `That's ${Math.round(m)} minutes of coding, gone.`,
+    noData: "Nobody's hit it yet.",
+    noDataHint: 'Or nobody is using it. Be the first',
+    chartTitle: 'Time until “You’ve hit your limit”',
+    chartSub: 'Median by week. Ticks are plan changes. Down is the bad direction.',
+    changesTitle: 'Recent fine print',
+    shareTitle: 'Just got cut off? Misery loves company.',
+    shareSub: 'Add your limit hit. It takes a minute and makes the numbers above harder to argue with. Nothing personal is sent.',
+    webHint: 'Six fields. Faster than waiting for the reset.',
+  },
+  zh: {
+    kicker: { tighter: '不是你的错觉。', looser: '难得的好消息。', mixed: '看你问谁了。' }[overall],
+    sub: '在 5 小时额度周期里，大家用多久会被 AI 喊停。由盯着重置倒计时的人们自行报告，不是官方数字。',
+    stats: [
+      [n(data.reports), '份报告'],
+      [n(data.people), '人撞过墙'],
+      [nowFelt ? `${nowFelt.pct}%` : '–', '的人上周说「这么快就没了？」'],
+    ],
+    lost: (m: number) => `少写了 ${Math.round(m)} 分钟代码。`,
+    noData: '还没人撞上。',
+    noDataHint: '也可能是还没人用。来当第一个',
+    chartTitle: '多久会看到「You’ve hit your limit」',
+    chartSub: '每周中位数。刻度是方案变化。往下走就是坏消息。',
+    changesTitle: '最近的小字条款',
+    shareTitle: '刚被限额了？来吐个槽。',
+    shareSub: '分享一次触发上限，只要一分钟，上面的数字就更难反驳。不会发送任何个人信息。',
+    webHint: '六个字段，比等重置快多了。',
+  },
+}[lang];
+const text = { ...base, kicker: null as string | null, lost: null as ((m: number) => string) | null, ...(fun ? jokes : {}) };
+
 // The chart is drawn twice, wide and narrow, so text stays readable on phones. The y axis runs from 0 to 3 hours.
 const YMAX = 180;
 const sizes = [
@@ -145,7 +187,8 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
 <div class="rich">
 <section class="hero">
   {data.sample && <span class="tag">{text.sample}</span>}
-  <h1><span class={`badge ${overall}`}>{overall === 'tighter' ? MARK.tighter : overall === 'looser' ? MARK.looser : MARK.mixed}</span>{text.headline}</h1>
+  <h1><span class={`badge ${overall}`}>{overall === 'tighter' ? MARK.tighter : overall === 'looser' ? MARK.looser : MARK.mixed}</span>{text.kicker ?? text.headline}</h1>
+  {text.kicker && <p class="kicker">{text.headline}</p>}
   <p class="sub">{text.sub}</p>
   <dl class="stats">
     {text.stats.map(([v, k]) => <div><dt>{v}</dt><dd>{k}</dd></div>)}
@@ -169,6 +212,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
               {v.dir === 'tighter' ? text.sooner(v.change!) : v.dir === 'looser' ? text.later(v.change!) : text.same}
             </span>
             <span class="small muted">{text.since}</span>
+            {text.lost && v.after! < v.before! && <span class="quip">{text.lost(v.before! - v.after!)}</span>}
             <div class="foot">
               <span class="small">
                 <b>{duration(v.after!)}</b> <span class="muted">{text.now}</span><br />
@@ -327,6 +371,8 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .badge.tighter { color: var(--minus); background: color-mix(in srgb, var(--minus) 12%, transparent); }
   .badge.looser { color: var(--plus); background: color-mix(in srgb, var(--plus) 12%, transparent); }
   .badge.mixed { color: var(--muted); background: var(--panel); }
+  .kicker { margin: -4px 0 14px; font: 500 24px/1.3 var(--sans); }
+  .quip { margin-top: 8px; font: 15px/1.4 var(--sans); }
   .sub { margin: 0; max-width: 60ch; color: var(--muted); font: 16px/1.55 var(--sans); }
   .stats { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 28px 0 0; }
   .stats div { display: flex; align-items: baseline; gap: 10px; }
@@ -396,6 +442,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   @media (max-width: 640px) {
     .hero { padding: 28px 0 0; }
     h1 { font-size: 30px; gap: 12px; }
+    .kicker { font-size: 19px; }
     .badge { width: 40px; height: 40px; font-size: 26px; border-radius: 11px; }
     .stats { gap: 8px 24px; }
     .stats dt { font-size: 19px; }
