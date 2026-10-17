@@ -27,7 +27,8 @@ struct ShareView: View {
         }
         .frame(width: 460)
         .onAppear {
-            plans = model.status?.plans ?? [:]
+            // The tool saves the plan with each send; a plan picked here but not sent yet is kept too.
+            plans = (model.status?.plans ?? [:]).merging(Self.savedPlans) { _, picked in picked }
             picked = Set(hits.map(\.key))
             raw = sample
             showRaw = false
@@ -176,7 +177,16 @@ struct ShareView: View {
     }
 
     private func binding(_ lab: String) -> Binding<String> {
-        Binding(get: { plans[lab] ?? "" }, set: { plans[lab] = $0; raw = nil })
+        Binding(get: { plans[lab] ?? "" }, set: {
+            plans[lab] = $0
+            raw = nil
+            if !$0.isEmpty { Self.savedPlans[lab] = $0 }
+        })
+    }
+
+    private static var savedPlans: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: "plans") as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "plans") }
     }
 
     private var chosenPlans: [String: String] { plans.filter { labsNeedingPlan.contains($0.key) && !$0.value.isEmpty } }
