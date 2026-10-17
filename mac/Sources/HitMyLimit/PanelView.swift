@@ -4,6 +4,8 @@ import SwiftUI
 struct PanelView: View {
     @ObservedObject var model: Model
     @Environment(\.openWindow) private var openWindow
+    // The day under the pointer in the limit-hit strip; its hits show below the strip.
+    @State var hoverDay: Int? = nil
 
     private struct Tool {
         let percent: Double
@@ -155,8 +157,10 @@ struct PanelView: View {
                     ForEach(0..<30, id: \.self) { i in
                         if let h = days[i].first {
                             RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Look.lab(h.lab))
+                                .opacity(hoverDay == nil || hoverDay == i ? 1 : 0.45)
                                 .frame(maxWidth: .infinity).frame(height: 20)
-                                .help(days[i].map(describe).joined(separator: "\n"))
+                                .contentShape(Rectangle().inset(by: -3))
+                                .onHover { if $0 { hoverDay = i } }
                         } else {
                             Capsule().fill(.primary.opacity(0.12)).frame(maxWidth: .infinity).frame(height: 3)
                         }
@@ -169,14 +173,48 @@ struct PanelView: View {
                     Text("today")
                 }
                 .font(.system(size: 11)).foregroundStyle(.tertiary)
+                if let d = hoverDay, d < days.count, !days[d].isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(days[d]) { hitDetail($0) }
+                    }
+                    .padding(.top, 4)
+                }
             }
+            .onHover { if !$0 { hoverDay = nil } }
             .padding(.top, 22)
         }
     }
 
-    private func describe(_ h: Status.Hit) -> String {
+    // What a report of this hit would hold: when it ran out, and tokens per model.
+    private func hitDetail(_ h: Status.Hit) -> some View {
         let window = h.window == "5h" ? "5-hour" : Options.windows[h.window] ?? h.window
-        return "\(Options.products[h.product] ?? h.product) \(window) limit after \(Format.duration(minutes: (h.hit - h.start) / 60000)), \(Format.when(date(h.hit)))"
+        let models = (h.models ?? [:]).sorted { $0.value.total > $1.value.total }
+        let top = max(1, models.first?.value.total ?? 1)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(Options.products[h.product] ?? h.product) \(window)").font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Text(Format.when(date(h.hit))).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            Text([
+                Format.duration(minutes: (h.hit - h.start) / 60000),
+                h.tokens.map { "\(Format.tokens($0)) tokens" },
+                h.requests.map { "\($0) requests" },
+            ].compactMap { $0 }.joined(separator: " · "))
+            .font(.system(size: 12)).foregroundStyle(.secondary)
+            ForEach(models, id: \.key) { name, m in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(name).font(.system(size: 12))
+                        Spacer()
+                        Text(Format.tokens(m.total)).font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                    }
+                    Bar(fraction: m.total / top, tint: Look.lab(h.lab), height: 3)
+                    Text("in \(Format.tokens(m.input))   out \(Format.tokens(m.output))   cache \(Format.tokens(m.cache_read + m.cache_write))")
+                        .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     @ViewBuilder private var news: some View {

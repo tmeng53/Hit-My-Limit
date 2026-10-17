@@ -19,7 +19,7 @@ enum Preview {
                    {"window":"5h","used":43,"resets_at":\(now + 2.5 * h)},
                    {"window":"weekly","used":71,"resets_at":\(now + 3 * d)}]},
          "hits":[
-           {"key":"a1","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 2 * d - 3 * h),"hit":\(now - 2 * d - 1 * h),"tokens":3100000,"plan":null,"sent":false},
+           {"key":"a1","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 2 * d - 3 * h),"hit":\(now - 2 * d - 1 * h),"tokens":3100000,"requests":241,"models":{"opus":{"total":2700000,"input":30,"output":34000,"cache_read":2520000,"cache_write":145970},"sonnet":{"total":400000,"input":10,"output":6000,"cache_read":380000,"cache_write":13990}},"plan":null,"sent":false},
            {"key":"a2","lab":"openai","product":"codex","window":"5h","start":\(now - 4 * d - 4 * h),"hit":\(now - 4 * d - 1.5 * h),"tokens":5200000,"plan":"plus","sent":false},
            {"key":"a3","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 12 * d - 5 * h),"hit":\(now - 12 * d - 1.75 * h),"tokens":4500000,"plan":"max-5x","sent":true},
            {"key":"a4","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 19 * d - 5 * h),"hit":\(now - 19 * d - 1.5 * h),"tokens":4700000,"plan":"max-5x","sent":true}],
@@ -89,6 +89,12 @@ enum Preview {
         .fixedSize()
         let panel = window(panelView, title: "Panel")
         panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY))
+        // The panel with the pointer on the latest limit hit in the strip.
+        let hover = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, hoverDay: 27)
+        }.fixedSize(), title: "Panel, hovering a limit hit")
+        hover.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - hover.frame.width - 20, y: screen.maxY))
         let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
         let sent = window(ShareView(model: model, sampleSent: sampleSent), title: "Share limit hits")
@@ -99,7 +105,7 @@ enum Preview {
         panel.makeKeyAndOrderFront(nil)
         // Window numbers for `screencapture -l`.
         if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
-            try? "panel \(panel.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+            try? "panel \(panel.windowNumber)\nhover \(hover.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
         }
     }
 

@@ -90,6 +90,9 @@ export function status({ claude, codex, claudeFound, codexFound, state, now = Da
       start: c.start,
       hit: c.hit,
       tokens: c.tokens?.total ?? null,
+      // Tokens per model, as in the report this hit would send.
+      models: c.models ?? null,
+      requests: c.requests ?? null,
       plan: c.plan,
       sent: state.sent.includes(hitKey(c)),
     })),

@@ -26,6 +26,13 @@ struct Status: Decodable {
         let plan: String?
         let limits: [CodexLimit]
     }
+    struct ModelTokens: Decodable {
+        let total: Double
+        let input: Double
+        let output: Double
+        let cache_read: Double
+        let cache_write: Double
+    }
     struct Hit: Decodable, Identifiable {
         let key: String
         let lab: String
@@ -34,6 +41,8 @@ struct Status: Decodable {
         let start: Double
         let hit: Double
         let tokens: Double?
+        let models: [String: ModelTokens]?
+        let requests: Int?
         let plan: String?
         let sent: Bool
         var id: String { key }

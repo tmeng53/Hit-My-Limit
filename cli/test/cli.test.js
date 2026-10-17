@@ -251,6 +251,9 @@ test('status: open Claude window next to earlier hits, Codex windows, and a drop
   assert.equal(s.codex.plan, 'plus');
   assert.equal(s.hits.length, 3);
   assert.match(s.hits[0].key, /^anthropic:5h:2026-10-15T09:00/);
+  // The same per-model tokens the report would send.
+  assert.equal(Object.values(s.hits[0].models).reduce((n, m) => n + m.total, 0), s.hits[0].tokens);
+  assert.ok(s.hits[0].requests > 0);
   assert.deepEqual(s.trend, [{
     lab: 'anthropic', window: '5h',
     recent: { n: 1, tokens: 2_000_000, minutes: 120 },
