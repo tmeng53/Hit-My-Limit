@@ -19,7 +19,7 @@ const text = {
     product: 'Product',
     plan: 'Plan',
     window: 'Which limit',
-    windows: { '5h': '5-hour', daily: 'Daily', weekly: 'Weekly' },
+    windows: { '5h': '5-hour', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' },
     hit: 'Hit the limit at',
     resets: 'Limit resets at',
     resetsHint: 'Shown in the app when you hit the limit. Used to work out when the window started.',
@@ -61,7 +61,7 @@ const text = {
     product: '产品',
     plan: '方案',
     window: '哪个额度',
-    windows: { '5h': '5 小时', daily: '每日', weekly: '每周' },
+    windows: { '5h': '5 小时', daily: '每日', weekly: '每周', monthly: '每月' },
     hit: '触发上限时间',
     resets: '额度重置时间',
     resetsHint: '触发上限时应用里会显示。用来推算这个额度周期的开始时间。',
@@ -186,7 +186,11 @@ const strings = {
     const resets = Date.parse(el('resets').value);
     if (Number.isNaN(hit) || Number.isNaN(resets)) return null;
     const length = windows[el('window').value];
-    const m = Math.round((hit - (resets - length * 60000)) / 60000);
+    // A monthly window starts on the same day of the previous month.
+    const start = el('window').value === 'monthly'
+      ? new Date(resets).setMonth(new Date(resets).getMonth() - 1)
+      : resets - length * 60000;
+    const m = Math.round((hit - start) / 60000);
     return m > 0 && m <= length ? m : 0;
   }
   function duration(m) {

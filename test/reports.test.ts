@@ -21,7 +21,7 @@ test('rejects bad values', () => {
   const bad = [
     { lab: 'meta' },
     { plan: 'plus' }, // an OpenAI plan on Anthropic
-    { window: 'monthly' },
+    { window: 'yearly' },
     { minutes_to_limit: 301 },
     { minutes_to_limit: 0 },
     { hit_on: '2026-01-01' },
@@ -36,4 +36,9 @@ test('rejects bad values', () => {
 
 test('weekly windows allow up to 7 days', () => {
   assert.equal(parseReport({ ...base, window: 'weekly', minutes_to_limit: 10080 }, today).minutes_to_limit, 10080);
+});
+
+test('monthly windows allow up to 31 days', () => {
+  assert.equal(parseReport({ ...base, window: 'monthly', minutes_to_limit: 44640 }, today).minutes_to_limit, 44640);
+  assert.throws(() => parseReport({ ...base, window: 'monthly', minutes_to_limit: 44641 }, today));
 });

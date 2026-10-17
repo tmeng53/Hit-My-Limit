@@ -13,6 +13,7 @@ function windowKind(minutes) {
   if (minutes >= 240 && minutes <= 360) return '5h';
   if (minutes >= 1300 && minutes <= 1600) return 'daily';
   if (minutes >= 9000 && minutes <= 11000) return 'weekly';
+  if (minutes >= 40000 && minutes <= 44640) return 'monthly';
   return null;
 }
 

@@ -25,7 +25,8 @@ export const OPTIONS = {
 export type Lab = keyof typeof OPTIONS;
 
 // Length of each kind of limit window, in minutes.
-export const WINDOWS = { '5h': 300, daily: 1440, weekly: 10080 } as const;
+// Monthly windows vary with the month's length, so they allow up to 31 days.
+export const WINDOWS = { '5h': 300, daily: 1440, weekly: 10080, monthly: 44640 } as const;
 export type LimitWindow = keyof typeof WINDOWS;
 
 export const WORK = ['coding', 'chat', 'research', 'other'] as const;
@@ -83,7 +84,7 @@ export function parseReport(body: unknown, today = new Date()): Report {
   const opts = OPTIONS[lab];
   if (!has(opts.products, b.product)) throw new Error('product is not valid for this lab');
   if (!has(opts.plans, b.plan)) throw new Error('plan is not valid for this lab');
-  if (!has(WINDOWS, b.window)) throw new Error('window must be 5h, daily or weekly');
+  if (!has(WINDOWS, b.window)) throw new Error('window must be 5h, daily, weekly or monthly');
   const window = b.window;
 
   // Rounded to 5 minutes, as promised on the share page.
