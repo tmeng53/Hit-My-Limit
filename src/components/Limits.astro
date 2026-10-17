@@ -10,34 +10,36 @@ const { lang } = Astro.props;
 
 const text = {
   en: {
-    h1: 'How long people last before hitting a usage limit',
-    lead: `Medians from reports sent in the last ${RECENT_DAYS} days, by plan and limit. A plan's numbers appear once it has ${MIN_GROUP} reports. These are self-reported, not official limits.`,
-    own: 'Own accounts',
+    h1: 'How long until you’re locked out',
+    lead: `Median from reports in the last ${RECENT_DAYS} days. Self-reported, not official.`,
     other: 'Shared and resold accounts',
-    otherLead: 'Kept separate because these accounts can have different limits or several people using them.',
-    cols: ['Lab', 'Plan', 'Limit', 'Reports', 'Median time to limit', 'Median tokens', 'Sooner than usual'],
+    otherNote: 'kept separate',
+    cols: ['Plan', 'Limit', 'Median', 'Middle half', 'vs 12 wk ago', 'Reports'],
     windows: { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' } as Record<string, string>,
-    progress: (n: number) => `${n} of ${MIN_GROUP} reports`,
+    needs: (k: number) => `needs ${k} more report${k === 1 ? '' : 's'}`,
+    tokens: (t: string) => `${t} tokens`,
+    felt: (p: number) => `${p}% said sooner than usual`,
     empty: 'No reports yet.',
-    share: 'Share a report',
+    share: 'share a hit →',
     closed: 'Reports are not open yet.',
-    tokensNote: 'Token counts come from the command-line tool, so they cover Claude Code and Codex use only, not the chat apps. "Sooner than usual" is the share of people who said they hit the limit sooner than they usually do.',
-    data: 'Download all reports (CSV, CC BY 4.0)',
+    tokensNote: 'Tokens come from the command-line tool, so they cover Claude Code and Codex, not the chat apps.',
+    data: 'download all reports (csv)',
   },
   zh: {
-    h1: '大家用多久会触发用量上限',
-    lead: `根据最近 ${RECENT_DAYS} 天收到的报告，按方案和额度计算的中位数。一个方案收到 ${MIN_GROUP} 份报告后才会显示数据。数据由用户自行报告，不是官方额度。`,
-    own: '自己的账号',
+    h1: '用多久会被锁',
+    lead: `最近 ${RECENT_DAYS} 天报告的中位数。由用户自行报告，不是官方数字。`,
     other: '共用和代理账号',
-    otherLead: '单独统计，因为这些账号的额度可能不同，或有多人同时使用。',
-    cols: ['公司', '方案', '额度', '报告数', '触发上限用时（中位数）', 'token（中位数）', '比平时更早'],
+    otherNote: '单独统计',
+    cols: ['方案', '额度', '中位数', '中间一半', '比 12 周前', '报告数'],
     windows: { '5h': '5 小时', daily: '每日', weekly: '每周', monthly: '每月' } as Record<string, string>,
-    progress: (n: number) => `${n} / ${MIN_GROUP} 份报告`,
+    needs: (k: number) => `还差 ${k} 份报告`,
+    tokens: (t: string) => `${t} token`,
+    felt: (p: number) => `${p}% 说比平时早`,
     empty: '还没有报告。',
-    share: '分享报告',
+    share: '报一下 →',
     closed: '报告功能尚未开放。',
-    tokensNote: 'token 数来自命令行工具，只包括 Claude Code 和 Codex 的用量，不含聊天应用。“比平时更早”是认为自己比平时更早触发上限的人所占的比例。',
-    data: '下载全部报告（CSV，CC BY 4.0）',
+    tokensNote: 'token 数来自命令行工具，只包括 Claude Code 和 Codex，不含聊天应用。',
+    data: '下载全部报告（CSV）',
   },
 }[lang];
 
@@ -55,9 +57,11 @@ const own = groups.filter((g) => g.account === 'own');
 const other = groups.filter((g) => g.account !== 'own');
 const prefix = lang === 'zh' ? '/zh' : '';
 
+// 95 -> "1h35", 45 -> "45m", 7020 -> "4d 21h"
 function duration(m: number) {
-  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
-  return [d && `${d}d`, h && `${h}h`, mm && `${mm}m`].filter(Boolean).join(' ') || '0m';
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = Math.round(m % 60);
+  if (d) return `${d}d ${h}h`;
+  return h ? `${h}h${String(mm).padStart(2, '0')}` : `${mm}m`;
 }
 function tokens(n: number) {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
@@ -65,7 +69,14 @@ function tokens(n: number) {
   if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
   return String(n);
 }
-const labName = (lab: string) => (LABS as Record<string, { en: string; zh: string }>)[lab]?.[lang] ?? lab;
+const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+const planName = (g: GroupStats) => `${BRAND[g.lab] ?? g.lab} ${labelFor(g.lab, 'plans', g.plan)}`;
+const bar = (n: number) => '█'.repeat(Math.max(1, Math.round((10 * Math.min(n, MIN_GROUP)) / MIN_GROUP))).padEnd(10, '░');
+const vs = (g: GroupStats) =>
+  g.median_minutes === null || g.prev_median_minutes === null ? null : Math.round((100 * (g.median_minutes - g.prev_median_minutes)) / g.prev_median_minutes);
+// Plans with numbers first, then the ones still collecting reports.
+const order = (rows: GroupStats[]) => [...rows].sort((a, b) => Number(a.median_minutes === null) - Number(b.median_minutes === null));
+const sections = [{ rows: order(own), title: null }, { rows: order(other), title: text.other }].filter((s, i) => i === 0 || s.rows.length > 0);
 ---
 <section class="intro">
   <h1>{text.h1}</h1>
@@ -73,79 +84,81 @@ const labName = (lab: string) => (LABS as Record<string, { en: string; zh: strin
 </section>
 
 {!dbConfigured() || failed ? (
-  <section><p>{text.closed}</p></section>
+  <p>{text.closed}</p>
+) : own.length + other.length === 0 ? (
+  <p>{text.empty} <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
 ) : (
-  [{ title: text.own, rows: own, lead: null }, { title: text.other, rows: other, lead: text.otherLead }]
-    .filter((s, i) => i === 0 || s.rows.length > 0)
-    .map((s) => (
-      <section>
-        <h2>{s.title}</h2>
-        {s.lead && <p class="meta">{s.lead}</p>}
-        {s.rows.length === 0 ? (
-          <p>{text.empty} <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
-        ) : (
-          <table>
-            <thead><tr>{text.cols.map((c) => <th>{c}</th>)}</tr></thead>
-            <tbody>
-              {s.rows.map((g) => (
-                <tr>
-                  <td class="muted">{labName(g.lab)}</td>
-                  <td>{labelFor(g.lab, 'plans', g.plan)}</td>
-                  <td>{text.windows[g.window] ?? g.window}</td>
-                  <td class="num">{g.reports}</td>
-                  {g.median_minutes === null
-                    ? <td class="muted" colspan="3">{text.progress(g.reports)}</td>
-                    : <>
-                        <td class="num">{duration(g.median_minutes)}</td>
-                        <td class="num">{g.median_tokens === null ? '–' : tokens(g.median_tokens)}</td>
-                        <td class="num">{g.felt_sooner === null ? '–' : `${g.felt_sooner}%`}</td>
-                      </>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-    ))
+  <table>
+    <thead><tr>{text.cols.map((c, i) => <th class={i >= 2 ? 'r' : undefined}>{c}</th>)}</tr></thead>
+    {sections.map((s) => (
+      <tbody>
+        {s.title && <tr class="group"><td colspan="6">{s.title} · <span class="faint">{text.otherNote}</span></td></tr>}
+        {s.rows.map((g) => {
+          const d = vs(g);
+          const extra = [g.median_tokens !== null && text.tokens(tokens(g.median_tokens)), g.felt_sooner !== null && text.felt(g.felt_sooner)].filter(Boolean).join(' · ');
+          return g.median_minutes === null ? (
+            <tr class="pending">
+              <td>{planName(g)}</td>
+              <td class="win">{text.windows[g.window] ?? g.window}</td>
+              <td class="r wait" colspan="3"><span class="bar" aria-hidden="true">{bar(g.reports)}</span> {text.needs(MIN_GROUP - g.reports)}</td>
+              <td class="r n">{g.reports}</td>
+            </tr>
+          ) : (
+            <tr>
+              <td>{planName(g)}{extra && <span class="extra">{extra}</span>}</td>
+              <td class="win">{text.windows[g.window] ?? g.window}</td>
+              <td class="r big">{duration(g.median_minutes)}</td>
+              <td class="r iqr">{duration(g.p25_minutes!)}–{duration(g.p75_minutes!)}</td>
+              <td class={`r d ${d === null ? '' : d <= -2 ? 'minus' : d >= 2 ? 'plus' : ''}`}>{d === null ? '' : `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)}%`}</td>
+              <td class="r n">{g.reports}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    ))}
+  </table>
 )}
 
-<section class="notes">
-  <p>{text.tokensNote}</p>
-  <p><a class="u" href="/data/reports.csv">{text.data}</a> · <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
-</section>
+<p class="notes"><a class="u" href="/data/reports.csv">{text.data}</a> <span class="faint">·</span> <a class="u" href={`${prefix}/share`}>{text.share}</a><br />{text.tokensNote}</p>
 
 <style>
-  .intro { padding: 48px 0 8px; }
-  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 16px; max-width: 30em; }
-  .lead { margin: 0; max-width: 62ch; color: var(--muted); }
-  h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
-  section + section { margin-top: 48px; }
-  .meta { font-size: var(--s-sm); color: var(--muted); margin: 8px 0; }
-  section > p { margin: 12px 0 0; }
+  .intro { padding: 56px 0 32px; }
+  h1 { font: 600 28px/1.25 var(--font); letter-spacing: -0.02em; margin: 0 0 10px; }
+  .lead { margin: 0; color: var(--muted); }
   .u { text-decoration: underline; text-underline-offset: 3px; }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th:nth-child(1) { width: 13%; }
-  th:nth-child(2), th:nth-child(3), th:nth-child(4) { width: 11%; }
-  th:nth-child(5) { width: 22%; }
-  th:nth-child(6) { width: 15%; }
-  th { text-align: left; font-weight: 400; color: var(--muted); font-size: var(--s-sm); padding: 8px 16px 8px 0; border-bottom: 1px solid var(--line); }
-  td { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); }
-  tr:hover td { background: var(--hover); }
-  .muted { color: var(--muted); }
-  .num { font-variant-numeric: tabular-nums; }
-  .notes p { font-size: var(--s-sm); color: var(--muted); margin: 0 0 8px; max-width: 62ch; }
+  .faint { color: var(--faint); }
+  .minus { color: var(--minus); }
+  .plus { color: var(--plus); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { font-size: var(--s-sm); font-weight: 400; color: var(--muted); text-align: left; padding: 8px 0; border-bottom: 1px solid var(--fg); }
+  td { padding: 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th.r, td.r { text-align: right; }
+  td.r + td.r, th.r + th.r { padding-left: 16px; }
+  .win { color: var(--muted); }
+  .big { font-weight: 600; font-size: 16px; }
+  .iqr { color: var(--muted); font-size: var(--s-sm); }
+  .extra { display: block; font-size: var(--s-sm); color: var(--muted); }
+  .pending td { color: var(--faint); }
+  .bar { letter-spacing: -1px; }
+  .group td { border: 0; padding: 40px 0 6px; font-size: var(--s-sm); color: var(--muted); }
+  .notes { margin-top: 32px; font-size: var(--s-sm); color: var(--muted); line-height: 1.9; }
   @media (max-width: 640px) {
-    .intro { padding: 24px 0 0; }
-    table, tbody, tr, td { display: block; }
+    .intro { padding: 32px 0 24px; }
+    h1 { font-size: 22px; }
     thead { display: none; }
-    tr { display: grid; grid-template-columns: 1fr auto; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    table, tbody, tr, td { display: block; }
+    tr { display: grid; grid-template-columns: 1fr auto auto; column-gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
     td { padding: 0; border: 0; }
-    td:nth-child(1) { grid-column: 1; font-size: var(--s-sm); }
-    td:nth-child(2) { grid-column: 1; }
-    td:nth-child(3) { grid-column: 1; color: var(--muted); font-size: var(--s-sm); }
-    td:nth-child(4) { display: none; }
-    td:nth-child(n+5) { grid-column: 2; grid-row: 2; text-align: right; }
-    td:nth-child(6) { grid-row: 3; color: var(--muted); font-size: var(--s-sm); }
-    td:nth-child(7) { grid-row: 4; color: var(--muted); font-size: var(--s-sm); }
+    td.r + td.r { padding-left: 0; }
+    td:nth-child(1) { grid-column: 1 / 3; }
+    td.win { grid-column: 1; grid-row: 2; font-size: var(--s-sm); }
+    td.big { grid-column: 3; grid-row: 1; }
+    td.iqr { grid-column: 3; grid-row: 2; }
+    td.d { grid-column: 2; grid-row: 2; font-size: var(--s-sm); }
+    td.n { display: none; }
+    .pending td.wait { grid-column: 2 / 4; grid-row: 2; font-size: var(--s-sm); }
+    .pending .bar { display: none; }
+    .group { display: block; }
+    .group td { padding: 32px 0 0; }
   }
 </style>

@@ -1,0 +1,28 @@
+---
+// The one-line `npx hitmylimit` command with a copy button. Dark in both themes.
+interface Props {
+  copy: string;
+  copied: string;
+}
+const { copy, copied } = Astro.props;
+---
+<div class="term"><code><span class="p">$</span>npx hitmylimit</code><button type="button" data-copy="npx hitmylimit" data-done={copied}>{copy}</button></div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => {
+    const label = b.textContent;
+    b.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(b.dataset.copy!);
+      b.textContent = b.dataset.done!;
+      setTimeout(() => (b.textContent = label), 1500);
+    });
+  });
+</script>
+
+<style>
+  .term { display: flex; align-items: center; justify-content: space-between; max-width: 520px; padding: 12px 14px 12px 16px; background: var(--term-bg); color: var(--term-fg); font-size: 16px; }
+  .p { color: #7a7a7a; margin-right: 10px; }
+  button { height: auto; font: 12px var(--font); background: none; color: #9a9a9a; border: 1px solid #3a3a3a; padding: 3px 10px; cursor: pointer; }
+  button:hover { color: var(--term-fg); border-color: #6a6a6a; }
+  @media (max-width: 640px) { .term { font-size: 15px; } }
+</style>

@@ -16,3 +16,8 @@ export interface HomeData {
   weeks: string[];
   plans: PlanTrend[];
 }
+
+// What the home page shows before there is a database or any report.
+export function emptyHome(): HomeData {
+  return { days: 30, reports: 0, people: 0, weeks: [], plans: [] };
+}
