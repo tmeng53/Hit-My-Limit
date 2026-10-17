@@ -62,7 +62,7 @@ test('Claude Code: finds a 5-hour hit, its window and the tokens used in it', as
   assert.equal(r.minutes_to_limit, 165);
   assert.equal(r.hit_on, '2026-10-16');
   assert.equal(r.tool_version, '2.1.160');
-  assert.deepEqual(Object.keys(r).sort(), ['account', 'client_id', 'hit_on', 'lab', 'minutes_to_limit', 'model', 'plan', 'product', 'source', 'tokens', 'tool_version', 'window', 'work']);
+  assert.deepEqual(Object.keys(r).sort(), ['account', 'client_id', 'felt', 'hit_on', 'lab', 'minutes_to_limit', 'model', 'plan', 'product', 'source', 'tokens', 'tool_version', 'window', 'work']);
 });
 
 test('Claude Code: without a reset time, uses the 5-hour window the hit falls in', async () => {

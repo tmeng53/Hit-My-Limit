@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { claudeDirs, claudeHits, readClaude } from '../src/claude.js';
 import { codexDirs, codexHits, readCodex } from '../src/codex.js';
-import { ACCOUNTS, PLANS, PRODUCT_NAMES, WINDOW_NAMES, WORK } from '../src/options.js';
+import { ACCOUNTS, FELT, PLANS, PRODUCT_NAMES, WINDOW_NAMES, WORK } from '../src/options.js';
 import { buildReport, comparisonLine, send } from '../src/report.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
 import { DAY, duration, isoDay } from '../src/time.js';
@@ -21,6 +21,7 @@ Options:
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200
   --work <kind>     coding, chat, research or other (default coding)
   --account <type>  own, shared or reseller (default own)
+  --felt <answer>   Compared with usual: sooner, usual or later (optional)
   --pick <n>        Which limit hit to share, as numbered in the list (default 1)
   --yes             Send without asking (still prints the report)
   --dry-run         Print the report and stop
@@ -41,6 +42,7 @@ async function main() {
       plan: { type: 'string' },
       work: { type: 'string' },
       account: { type: 'string' },
+      felt: { type: 'string' },
       pick: { type: 'string' },
       yes: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
@@ -137,7 +139,8 @@ async function main() {
     const work = await ask('Kind of work:', WORK, 'coding', o.work);
     const account = await ask('Account:', ACCOUNTS, 'own', o.account);
 
-    const report = buildReport(c, { plan, work, account, clientId: state.client_id });
+    const felt = await ask('Did you hit the limit sooner or later than usual?', FELT, 'skip', o.felt);
+    const report = buildReport(c, { plan, work, account, felt: felt === 'skip' ? null : felt, clientId: state.client_id });
     console.log('\nThis is everything that will be sent:\n');
     console.log(JSON.stringify(report, null, 2));
     console.log('\nclient_id is a random id made on this computer. It is hashed before it is stored.');

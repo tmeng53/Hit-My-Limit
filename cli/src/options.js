@@ -9,5 +9,11 @@ export const ACCOUNTS = [
   ['shared', 'shared with other people'],
   ['reseller', 'bought from a reseller'],
 ];
+export const FELT = [
+  ['skip', 'skip'],
+  ['sooner', 'sooner than usual'],
+  ['usual', 'about the same as usual'],
+  ['later', 'later than usual'],
+];
 export const PRODUCT_NAMES = { 'claude-code': 'Claude Code', codex: 'Codex' };
 export const WINDOW_NAMES = { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' };

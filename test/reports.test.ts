@@ -42,3 +42,9 @@ test('monthly windows allow up to 31 days', () => {
   assert.equal(parseReport({ ...base, window: 'monthly', minutes_to_limit: 44640 }, today).minutes_to_limit, 44640);
   assert.throws(() => parseReport({ ...base, window: 'monthly', minutes_to_limit: 44641 }, today));
 });
+
+test('felt is optional and limited to sooner, usual or later', () => {
+  assert.equal(parseReport(base, today).felt, null);
+  assert.equal(parseReport({ ...base, felt: 'sooner' }, today).felt, 'sooner');
+  assert.throws(() => parseReport({ ...base, felt: 'angry' }, today));
+});

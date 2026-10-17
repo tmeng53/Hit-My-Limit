@@ -1,5 +1,5 @@
 ---
-import { ACCOUNTS, OPTIONS, WINDOWS, WORK } from '../lib/reports';
+import { ACCOUNTS, FELT, OPTIONS, WINDOWS, WORK } from '../lib/reports';
 import { REPO_URL, type Lang } from '../lib/site';
 
 interface Props {
@@ -27,6 +27,8 @@ const text = {
     works: { coding: 'Coding', chat: 'Chat', research: 'Research', other: 'Other' },
     account: 'Account',
     accounts: { own: 'My own (paid directly, or a work seat)', shared: 'Shared with other people', reseller: 'Bought from a reseller' },
+    felt: 'Compared with usual',
+    felts: { sooner: 'Hit it sooner than usual', usual: 'About the same', later: 'Hit it later than usual' },
     model: 'Model',
     tokens: 'Tokens used',
     optional: 'optional',
@@ -44,7 +46,7 @@ const text = {
     stored: [
       'Lab, product, plan, which limit, and the date you hit it.',
       'How long after the window started you hit the limit, rounded to 5 minutes. Not the clock time.',
-      'Kind of work, account type, and the model and token count if you give them.',
+      'Kind of work, account type, and how it compared with usual, the model and the token count if you give them.',
       'A random id kept in this browser, so repeat reports from one person can be counted once. It is hashed before it is stored.',
     ],
     notStored: 'Not stored: prompts, code, file names, account details, email, time zone or IP address. Your IP address is used only to limit how many reports one address can send per day, as a hash that is deleted the next day.',
@@ -69,6 +71,8 @@ const text = {
     works: { coding: '写代码', chat: '聊天', research: '研究', other: '其他' },
     account: '账号',
     accounts: { own: '自己的（直接付费，或公司账号）', shared: '与他人共用', reseller: '从代理商购买' },
+    felt: '与平时相比',
+    felts: { sooner: '比平时更早触发', usual: '差不多', later: '比平时更晚触发' },
     model: '模型',
     tokens: '已用 token',
     optional: '选填',
@@ -86,7 +90,7 @@ const text = {
     stored: [
       '公司、产品、方案、哪个额度，以及触发上限的日期。',
       '额度周期开始后多久触发上限，按 5 分钟取整。不保存具体时刻。',
-      '用途、账号类型，以及你填写的模型和 token 数。',
+      '用途、账号类型，以及你填写的与平时的对比、模型和 token 数。',
       '一个保存在本浏览器里的随机 ID，用来识别同一个人的重复报告。保存前会做哈希处理。',
     ],
     notStored: '不保存：提示词、代码、文件名、账号信息、邮箱、时区或 IP 地址。IP 地址只用于限制每个地址每天能发送的报告数，以哈希形式保存，第二天删除。',
@@ -136,6 +140,9 @@ const strings = {
     </label>
     <label class="field"><span>{text.account}</span>
       <select name="account">{ACCOUNTS.map((a) => <option value={a}>{text.accounts[a]}</option>)}</select>
+    </label>
+    <label class="field"><span>{text.felt} <small>{text.optional}</small></span>
+      <select name="felt"><option value="">–</option>{FELT.map((f) => <option value={f}>{text.felts[f]}</option>)}</select>
     </label>
     <label class="field"><span>{text.model} <small>{text.optional}</small></span>
       <input name="model" list="models" maxlength="40" autocomplete="off" /><datalist id="models"></datalist>
@@ -235,6 +242,7 @@ const strings = {
       hit_on: hit.toISOString().slice(0, 10),
       work: el('work').value,
       account: el('account').value,
+      felt: el('felt').value || null,
       model: el('model').value.trim() || null,
       tokens: { total: el('tokens').value.replace(/[^0-9]/g, '') || null },
       source: 'form',

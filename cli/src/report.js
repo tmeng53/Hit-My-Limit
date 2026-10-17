@@ -1,7 +1,7 @@
 import { isoDay } from './time.js';
 
 // The exact body sent to the site. Nothing else leaves the computer.
-export function buildReport(c, { plan, work, account, clientId }) {
+export function buildReport(c, { plan, work, account, felt = null, clientId }) {
   return {
     lab: c.lab,
     product: c.product,
@@ -12,6 +12,7 @@ export function buildReport(c, { plan, work, account, clientId }) {
     model: c.model,
     work,
     account,
+    felt,
     tokens: c.tokens,
     tool_version: c.tool_version,
     source: 'cli',

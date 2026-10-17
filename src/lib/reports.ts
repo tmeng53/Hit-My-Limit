@@ -33,6 +33,8 @@ export const WORK = ['coding', 'chat', 'research', 'other'] as const;
 // own = paid the lab directly (personal or work seat); shared = an account used by several people;
 // reseller = bought through a third party. Shared and reseller reports are kept apart from the rest.
 export const ACCOUNTS = ['own', 'shared', 'reseller'] as const;
+// How the hit compared with what the person is used to. Optional.
+export const FELT = ['sooner', 'usual', 'later'] as const;
 
 export interface Report {
   lab: Lab;
@@ -44,6 +46,7 @@ export interface Report {
   model: string | null;
   work: (typeof WORK)[number];
   account: (typeof ACCOUNTS)[number];
+  felt: (typeof FELT)[number] | null;
   tokens_total: number | null;
   tokens_input: number | null;
   tokens_output: number | null;
@@ -103,6 +106,8 @@ export function parseReport(body: unknown, today = new Date()): Report {
   if (!WORK.includes(b.work)) throw new Error('work must be coding, chat, research or other');
   const account = b.account ?? 'own';
   if (!ACCOUNTS.includes(account)) throw new Error('account must be own, shared or reseller');
+  const felt = b.felt ?? null;
+  if (felt !== null && !FELT.includes(felt)) throw new Error('felt must be sooner, usual or later');
 
   const tokens = b.tokens && typeof b.tokens === 'object' ? b.tokens : {};
   const client = typeof b.client_id === 'string' ? b.client_id : '';
@@ -118,6 +123,7 @@ export function parseReport(body: unknown, today = new Date()): Report {
     model: shortText(b.model, 'model', /^[a-z0-9][a-z0-9 ._-]{0,39}$/),
     work: b.work,
     account,
+    felt,
     tokens_total: tokenCount(tokens.total ?? b.tokens_total, 'tokens.total'),
     tokens_input: tokenCount(tokens.input, 'tokens.input'),
     tokens_output: tokenCount(tokens.output, 'tokens.output'),

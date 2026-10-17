@@ -22,6 +22,7 @@ create table if not exists reports (
   model text,
   work text not null,
   account text not null,
+  felt text,
   tokens_total bigint,
   tokens_input bigint,
   tokens_output bigint,
@@ -87,13 +88,13 @@ export async function saveReport(r: Report): Promise<boolean> {
   const p = await db();
   const { rowCount } = await p.query(
     `insert into reports (hit_on, lab, product, plan, limit_window, minutes_to_limit, model, work, account,
-       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      on conflict do nothing`,
     [
       r.hit_on, r.lab, r.product, r.plan, r.window, r.minutes_to_limit, r.model, r.work, r.account,
       r.tokens_total, r.tokens_input, r.tokens_output, r.tokens_cache_read, r.tokens_cache_write,
-      r.tool_version, r.source, sha(r.client_id),
+      r.tool_version, r.source, sha(r.client_id), r.felt,
     ],
   );
   return rowCount === 1;
@@ -140,6 +141,9 @@ export interface GroupStats {
   median_minutes: number | null;
   token_reports: number;
   median_tokens: number | null;
+  // Of the reports that answered, the share that said the limit came sooner than usual, 0–100.
+  felt_reports: number;
+  felt_sooner: number | null;
 }
 
 // Per-group counts and medians over the last RECENT_DAYS days. Medians are left out for small groups.
@@ -151,7 +155,9 @@ export async function groupStats(): Promise<GroupStats[]> {
             count(distinct contributor)::int as contributors,
             percentile_cont(0.5) within group (order by minutes_to_limit) as median_minutes,
             count(tokens_total)::int as token_reports,
-            percentile_cont(0.5) within group (order by tokens_total) as median_tokens
+            percentile_cont(0.5) within group (order by tokens_total) as median_tokens,
+            count(felt)::int as felt_reports,
+            count(*) filter (where felt = 'sooner')::int as sooner
      from reports
      where not hidden and hit_on > current_date - $1::int
      group by 1, 2, 3, 4
@@ -162,13 +168,14 @@ export async function groupStats(): Promise<GroupStats[]> {
     ...g,
     median_minutes: g.reports >= MIN_GROUP ? Math.round(g.median_minutes) : null,
     median_tokens: g.token_reports >= MIN_GROUP ? Math.round(g.median_tokens) : null,
+    felt_sooner: g.felt_reports >= MIN_GROUP ? Math.round((100 * g.sooner) / g.felt_reports) : null,
   }));
 }
 
 export const CSV_COLUMNS = [
   'id', 'hit_on', 'lab', 'product', 'plan', 'limit_window', 'minutes_to_limit', 'model', 'work', 'account',
   'tokens_total', 'tokens_input', 'tokens_output', 'tokens_cache_read', 'tokens_cache_write',
-  'tool_version', 'source', 'contributor',
+  'tool_version', 'source', 'contributor', 'felt',
 ] as const;
 
 // Every visible report, for the public dataset.

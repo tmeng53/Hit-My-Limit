@@ -15,13 +15,13 @@ const text = {
     own: 'Own accounts',
     other: 'Shared and resold accounts',
     otherLead: 'Kept separate because these accounts can have different limits or several people using them.',
-    cols: ['Lab', 'Plan', 'Limit', 'Reports', 'Median time to limit', 'Median tokens'],
+    cols: ['Lab', 'Plan', 'Limit', 'Reports', 'Median time to limit', 'Median tokens', 'Sooner than usual'],
     windows: { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' } as Record<string, string>,
     progress: (n: number) => `${n} of ${MIN_GROUP} reports`,
     empty: 'No reports yet.',
     share: 'Share a report',
     closed: 'Reports are not open yet.',
-    tokensNote: 'Token counts come from the command-line tool, so they cover Claude Code and Codex use only, not the chat apps.',
+    tokensNote: 'Token counts come from the command-line tool, so they cover Claude Code and Codex use only, not the chat apps. "Sooner than usual" is the share of people who said they hit the limit sooner than they usually do.',
     data: 'Download all reports (CSV, CC BY 4.0)',
   },
   zh: {
@@ -30,13 +30,13 @@ const text = {
     own: '自己的账号',
     other: '共用和代理账号',
     otherLead: '单独统计，因为这些账号的额度可能不同，或有多人同时使用。',
-    cols: ['公司', '方案', '额度', '报告数', '触发上限用时（中位数）', 'token（中位数）'],
+    cols: ['公司', '方案', '额度', '报告数', '触发上限用时（中位数）', 'token（中位数）', '比平时更早'],
     windows: { '5h': '5 小时', daily: '每日', weekly: '每周', monthly: '每月' } as Record<string, string>,
     progress: (n: number) => `${n} / ${MIN_GROUP} 份报告`,
     empty: '还没有报告。',
     share: '分享报告',
     closed: '报告功能尚未开放。',
-    tokensNote: 'token 数来自命令行工具，只包括 Claude Code 和 Codex 的用量，不含聊天应用。',
+    tokensNote: 'token 数来自命令行工具，只包括 Claude Code 和 Codex 的用量，不含聊天应用。“比平时更早”是认为自己比平时更早触发上限的人所占的比例。',
     data: '下载全部报告（CSV，CC BY 4.0）',
   },
 }[lang];
@@ -94,10 +94,11 @@ const labName = (lab: string) => (LABS as Record<string, { en: string; zh: strin
                   <td>{text.windows[g.window] ?? g.window}</td>
                   <td class="num">{g.reports}</td>
                   {g.median_minutes === null
-                    ? <td class="muted" colspan="2">{text.progress(g.reports)}</td>
+                    ? <td class="muted" colspan="3">{text.progress(g.reports)}</td>
                     : <>
                         <td class="num">{duration(g.median_minutes)}</td>
                         <td class="num">{g.median_tokens === null ? '–' : tokens(g.median_tokens)}</td>
+                        <td class="num">{g.felt_sooner === null ? '–' : `${g.felt_sooner}%`}</td>
                       </>}
                 </tr>
               ))}
@@ -123,9 +124,10 @@ const labName = (lab: string) => (LABS as Record<string, { en: string; zh: strin
   section > p { margin: 12px 0 0; }
   .u { text-decoration: underline; text-underline-offset: 3px; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th:nth-child(1) { width: 14%; }
-  th:nth-child(2), th:nth-child(3), th:nth-child(4) { width: 12%; }
-  th:nth-child(5) { width: 28%; }
+  th:nth-child(1) { width: 13%; }
+  th:nth-child(2), th:nth-child(3), th:nth-child(4) { width: 11%; }
+  th:nth-child(5) { width: 22%; }
+  th:nth-child(6) { width: 15%; }
   th { text-align: left; font-weight: 400; color: var(--muted); font-size: var(--s-sm); padding: 8px 16px 8px 0; border-bottom: 1px solid var(--line); }
   td { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); }
   tr:hover td { background: var(--hover); }
@@ -144,5 +146,6 @@ const labName = (lab: string) => (LABS as Record<string, { en: string; zh: strin
     td:nth-child(4) { display: none; }
     td:nth-child(n+5) { grid-column: 2; grid-row: 2; text-align: right; }
     td:nth-child(6) { grid-row: 3; color: var(--muted); font-size: var(--s-sm); }
+    td:nth-child(7) { grid-row: 4; color: var(--muted); font-size: var(--s-sm); }
   }
 </style>
