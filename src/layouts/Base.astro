@@ -14,9 +14,8 @@ const enHref = path;
 const zhHref = path === '/' ? '/zh/' : `/zh${path}`;
 const prefix = lang === 'zh' ? '/zh' : '';
 const nav = [
-  { href: `${prefix}/`, label: s.navLimits, path: '/' },
+  { href: `${prefix}/limits`, label: s.navLimits, path: '/limits' },
   { href: `${prefix}/changes`, label: s.navLog, path: '/changes' },
-  { href: `${prefix}/share`, label: s.navShare, path: '/share' },
 ];
 const pageTitle = title ? `${title} · Hit My Limit` : `Hit My Limit · ${s.tagline}`;
 const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
@@ -34,14 +33,26 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
     <header>
-      <a class="name" href={`${prefix}/`}>hitmylimit</a>
+      <a class="name" href={`${prefix}/`}>
+        {/* The logo: a full usage bar with grass growing on it; a fish jumps over it on the Chinese site (摸鱼). */}
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="9" y="38" width="46" height="12" rx="3" class="soil" />
+          {lang === 'zh' ? (
+            <g class="fish"><path d="M16 25 Q30 11 44 25 Q30 39 16 25 Z M18 25 L6 16 V34 Z" /><circle cx="37" cy="23" r="2.5" /></g>
+          ) : (
+            <path class="blades" d="M17 38 Q16 30 12 25 M24 38 Q24 27 28 20 M31 38 Q33 31 38 28 M44 38 Q43 30 47 23 M50 38 Q51 34 54 32" />
+          )}
+        </svg>
+        hitmylimit
+      </a>
       <nav>
-        {nav.map((n) => <a href={n.href} aria-current={n.path === path ? 'page' : undefined}>{n.label}</a>)}
+        {nav.map((n) => <a class={n.path === '/limits' ? 'hide-sm' : undefined} href={n.href} aria-current={n.path === path ? 'page' : undefined}>{n.label}</a>)}
         <a class="lang" href={lang === 'zh' ? enHref : zhHref} lang={lang === 'zh' ? 'en' : 'zh-CN'}>{s.other}</a>
+        <a class="cta" href={`${prefix}/share`} aria-current={path === '/share' ? 'page' : undefined}>{s.navShare}</a>
       </nav>
     </header>
     <main>
@@ -66,8 +77,13 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     --muted: #707070;
     --line: #e6e6e6;
     --hover: #f5f5f5;
+    --faint: #a3a3a3;
     --minus: #d1242f;
     --plus: #1a7f37;
+    --minus-bg: #fdeeee;
+    --plus-bg: #e9f6ec;
+    --term-bg: #0a0a0a;
+    --term-fg: #f2f2f2;
     --font: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', monospace;
     --s-sm: 13px;
     --s-md: 14px;
@@ -81,8 +97,12 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
       --muted: #8c8c8c;
       --line: #262626;
       --hover: #171717;
+      --faint: #5c5c5c;
       --minus: #ff7b72;
       --plus: #56d364;
+      --minus-bg: #2a1414;
+      --plus-bg: #0f2417;
+      --term-bg: #1a1a1a;
     }
   }
   * { box-sizing: border-box; }
@@ -100,11 +120,23 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
   header nav { display: flex; gap: 20px; }
   header nav a { color: var(--muted); }
   header nav a[aria-current='page'] { color: var(--fg); }
-  .name { font-weight: 500; font-size: var(--s-md); }
-  footer { display: flex; gap: 24px; flex-wrap: wrap; padding-top: 48px; padding-bottom: 48px; font-size: var(--s-sm); color: var(--muted); }
+  header nav { align-items: center; }
+  header nav a.cta { color: var(--fg); border: 1px solid var(--fg); padding: 4px 12px; }
+  header nav a.cta:hover { background: var(--fg); color: var(--bg); text-decoration: none; }
+  .name { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: var(--s-md); }
+  .name:hover { text-decoration: none; }
+  .name svg { width: 22px; height: 22px; }
+  .name .soil { fill: var(--fg); }
+  .name .blades { fill: none; stroke: var(--plus); stroke-width: 4; stroke-linecap: round; }
+  .name .fish path { fill: var(--plus); }
+  .name .fish circle { fill: var(--bg); }
+  footer { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 72px; padding-bottom: 48px; font-size: var(--s-sm); color: var(--muted); }
+  footer::before { content: ''; flex-basis: 100%; border-top: 1px solid var(--line); margin-bottom: 16px; }
   @media (max-width: 640px) {
     header, main, footer { padding: 0 16px; }
     header nav { gap: 14px; }
-    footer { gap: 8px 20px; padding-top: 40px; padding-bottom: 40px; }
+    header nav .hide-sm { display: none; }
+    footer { gap: 8px 20px; margin-top: 56px; padding-bottom: 40px; }
+    footer::before { margin-bottom: 24px; }
   }
 </style>

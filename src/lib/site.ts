@@ -42,6 +42,7 @@ export const t = {
     latest: 'Most recent change per lab',
     log: 'All changes',
     plans: 'Plans',
+    dayAgo: '1 day ago',
     daysAgo: 'days ago',
     today: 'today',
     alertsLead: 'Email me when a limit changes',
@@ -49,7 +50,7 @@ export const t = {
     dataLicense: 'Data: CC BY 4.0',
     navLog: 'changes',
     navLimits: 'limits',
-    navShare: 'share',
+    navShare: 'share a hit',
     notAffiliated: 'Not affiliated with Anthropic, OpenAI or Google',
   },
   zh: {
@@ -79,6 +80,7 @@ export const t = {
     latest: '各家最近一次变化',
     log: '全部变化',
     plans: '方案',
+    dayAgo: '1 天前',
     daysAgo: '天前',
     today: '今天',
     alertsLead: '额度有变化时发邮件提醒我',
@@ -86,7 +88,7 @@ export const t = {
     dataLicense: '数据：CC BY 4.0',
     navLog: '变化',
     navLimits: '额度数据',
-    navShare: '分享',
+    navShare: '报一下',
     notAffiliated: '与 Anthropic、OpenAI、Google 无关联',
   },
 } as const;

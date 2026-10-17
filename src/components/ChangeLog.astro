@@ -86,7 +86,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   </ol>
 </section>
 
-<script define:vars={{ daysAgo: s.daysAgo, today: s.today }}>
+<script define:vars={{ dayAgo: s.dayAgo, daysAgo: s.daysAgo, today: s.today }}>
   const buttons = document.querySelectorAll('[data-filter]');
   const items = document.querySelectorAll('.log li');
   for (const b of buttons) {
@@ -101,7 +101,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   const now = Date.now();
   for (const el of document.querySelectorAll('.ago')) {
     const days = Math.floor((now - Date.parse(el.dataset.date)) / 86400000);
-    el.textContent = days < 1 ? today : `${days} ${daysAgo}`;
+    el.textContent = days < 1 ? today : days === 1 ? dayAgo : `${days} ${daysAgo}`;
   }
 
   // Open the entry a link points to.
