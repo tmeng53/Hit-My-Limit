@@ -182,3 +182,20 @@ test('hit list shows tokens, cache share, models, plan and weekly use', async ()
   assert.match(text, /gpt-5-codex +1\.5M +75%/);
   assert.match(text, /plan Plus \(from the logs\), weekly limit 40% used/);
 });
+
+test('limit notices that cannot be read are counted, rate-limit errors are not', async () => {
+  const { unreadNote } = await import('../src/display.js');
+  const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
+  writeFileSync(join(dir, 'a.jsonl'), lines([
+    notice('2026-10-16T09:00:00Z', 'API Error: Rate limit reached for requests'),
+    notice('2026-10-16T10:00:00Z', 'Your plan allowance hit its limit; back at 3pm'),
+    notice('2026-10-16T10:05:00Z', 'Your plan allowance hit its limit; back at 3pm'),
+  ]));
+  const data = await readClaude([dir], since);
+  assert.equal(claudeHits(data).length, 0);
+  assert.equal(data.unread.length, 2);
+  const note = unreadNote([['Claude Code', data.unread], ['Codex', []]]);
+  assert.match(note, /couldn't be read \(1 in Claude Code\)/);
+  assert.match(note, /issues\/new\?title=/);
+  assert.equal(unreadNote([['Codex', []]]), null);
+});

@@ -37,6 +37,8 @@ function snapshot(rl, time) {
 export async function readCodex(dirs, since) {
   const usage = [];
   const hits = [];
+  // Limit events that couldn't be read; a sign the log format changed.
+  const unread = [];
   for (const dir of dirs) {
     for (const file of await jsonlFiles(dir, since)) {
       let version = null;
@@ -73,6 +75,8 @@ export async function readCodex(dirs, since) {
             // Once a request is refused, Codex logs snapshots with empty windows; keep the last real one.
             const snap = snapshot(p.rate_limits, time);
             if (snap.length) last = snap;
+            // Windows present but in a shape this tool doesn't know.
+            else if (['primary', 'secondary'].some((k) => p.rate_limits[k])) unread.push({ time, version });
             plan = PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan;
             for (const w of snap) if (w.used >= 100) hits.push({ time, ...w, plan, version, snap });
           }
@@ -80,22 +84,29 @@ export async function readCodex(dirs, since) {
           // "You've hit your usage limit" doesn't say which limit; use the fullest window from the last snapshot.
           const w = [...last].sort((a, b) => b.used - a.used)[0];
           if (w && w.used >= 90) hits.push({ time, ...w, plan, version, snap: last });
+          else unread.push({ time, version });
+        } else if ((p.type === 'error' || p.type === 'task_complete') && /\blimit\b/i.test(String(p.error?.message ?? p.message ?? ''))
+          && !/rate limit|context|too long|output token/i.test(String(p.error?.message ?? p.message ?? ''))) {
+          unread.push({ time, version });
         }
       });
     }
   }
   usage.sort((a, b) => a.time - b.time);
   hits.sort((a, b) => a.time - b.time);
-  return { usage, hits };
+  return { usage, hits, unread };
 }
 
-export function codexHits({ usage, hits }) {
+export function codexHits(data) {
+  const { usage, hits } = data;
   const out = [];
   for (const h of hits) {
     const kind = windowKind(h.minutes);
-    if (!kind || !h.resetsAt) continue;
     const start = h.resetsAt - h.minutes * 60_000;
-    if (!(start < h.time)) continue;
+    if (!kind || !h.resetsAt || !(start < h.time)) {
+      data.unread?.push({ time: h.time, version: h.version });
+      continue;
+    }
     if (out.some((o) => o.window === kind && Math.abs(o.start - start) < 30 * 60_000)) continue;
     // How full the weekly limit was when a 5-hour limit ran out.
     const weekly = kind === '5h' ? h.snap?.find((w) => windowKind(w.minutes) === 'weekly') : null;

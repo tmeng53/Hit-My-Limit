@@ -8,6 +8,8 @@ import { HOUR, DAY, parseReset } from './time.js';
 
 // e.g. "5-hour limit reached ∙ resets 3pm", "You've hit your session limit · resets 12:20am (America/New_York)"
 const LIMIT = /limit reached|hit your (?:[a-z-]+ )?limit|limit will reset/i;
+// API errors that mention a limit but aren't a plan's usage limit.
+const NOT_USAGE = /rate limit|overloaded|context|too long|max_tokens|output token/i;
 
 export function claudeDirs(env = process.env) {
   const roots = env.CLAUDE_CONFIG_DIR
@@ -25,6 +27,8 @@ function textOf(content) {
 export async function readClaude(dirs, since) {
   const usage = [];
   const hits = [];
+  // Notices that mention a limit but couldn't be read; a sign the log format changed.
+  const unread = [];
   const seen = new Set();
   for (const dir of dirs) {
     for (const file of await jsonlFiles(dir, since)) {
@@ -35,7 +39,9 @@ export async function readClaude(dirs, since) {
         const msg = e.message;
         if (msg.model === '<synthetic>' || e.isApiErrorMessage) {
           const text = textOf(msg.content);
+          if (NOT_USAGE.test(text)) return;
           if (LIMIT.test(text)) hits.push({ time, text: text.slice(0, 300), version: e.version ?? null });
+          else if (/\blimit\b/i.test(text)) unread.push({ time, version: e.version ?? null });
           return;
         }
         const u = msg.usage;
@@ -58,7 +64,7 @@ export async function readClaude(dirs, since) {
   }
   usage.sort((a, b) => a.time - b.time);
   hits.sort((a, b) => a.time - b.time);
-  return { usage, hits };
+  return { usage, hits, unread };
 }
 
 // 5-hour windows as Claude Code counts them: a window opens at the hour of the first message sent after the
@@ -82,7 +88,8 @@ export function modelFamily(model) {
 }
 
 // Turns limit notices into report candidates. Hits whose window start can't be worked out are left out.
-export function claudeHits({ usage, hits }) {
+export function claudeHits(data) {
+  const { usage, hits } = data;
   const windows = fiveHourWindows(usage);
   const out = [];
   for (const h of hits) {
@@ -95,7 +102,10 @@ export function claudeHits({ usage, hits }) {
     } else if (kind === '5h') {
       start = windows.filter((w) => w <= h.time && h.time < w + length).pop() ?? null;
     }
-    if (start === null) continue;
+    if (start === null) {
+      data.unread?.push({ time: h.time, version: h.version });
+      continue;
+    }
     // Retrying after the limit writes the same notice again; keep the first one per window.
     if (out.some((o) => o.window === kind && Math.abs(o.start - start) < 30 * 60_000)) continue;
     out.push({ lab: 'anthropic', product: 'claude-code', window: kind, start, hit: h.time, version: h.version });

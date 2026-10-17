@@ -47,3 +47,28 @@ export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
   if (extra.length) lines.push(pad + k.dim(extra.join(', ')));
   return lines;
 }
+
+const ISSUES = 'https://github.com/tmeng53/Hit-My-Limit/issues/new';
+
+// A note about limit notices that couldn't be read, with a link to report it. The link carries only counts and
+// version numbers, never log content.
+export function unreadNote(sources, k = colors(false)) {
+  const parts = [];
+  const versions = [];
+  for (const [name, list] of sources) {
+    // A refused request is often retried many times; count each hour once.
+    const n = new Set(list.map((u) => Math.floor(u.time / 3_600_000))).size;
+    if (!n) continue;
+    parts.push(`${n} in ${name}`);
+    const v = [...new Set(list.map((u) => u.version).filter(Boolean))].slice(-3);
+    versions.push(`${name} ${v.join(', ') || 'unknown'}`);
+  }
+  if (!parts.length) return null;
+  const title = encodeURIComponent('Limit notices the tool could not read');
+  const body = encodeURIComponent(`Unread: ${parts.join(', ')}\nVersions: ${versions.join('; ')}`);
+  return [
+    `Some limit notices couldn't be read (${parts.join(', ')}). The log format may have changed,`,
+    'so these hits are missing above. Letting us know helps fix it for everyone:',
+    k.dim(`${ISSUES}?title=${title}&body=${body}`),
+  ].join('\n');
+}

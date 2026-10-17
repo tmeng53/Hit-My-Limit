@@ -7,7 +7,7 @@ import { codexDirs, codexHits, readCodex } from '../src/codex.js';
 import { ACCOUNTS, FELT, PLANS, WORK } from '../src/options.js';
 import { buildReport, comparisonLine, send } from '../src/report.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
-import { colors, hitLines } from '../src/display.js';
+import { colors, hitLines, unreadNote } from '../src/display.js';
 import { DAY } from '../src/time.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -83,6 +83,7 @@ async function main() {
     const statePathname = statePath();
     const state = await loadState(statePathname);
     const found = [...claudeHits(claude), ...codexHits(codex)].sort((a, b) => b.hit - a.hit);
+    const note = unreadNote([['Claude Code', claude.unread], ['Codex', codex.unread]], color);
 
     if (!found.length) {
       const seen = [claude.usage.length && 'Claude Code', codex.usage.length && 'Codex'].filter(Boolean);
@@ -91,7 +92,8 @@ async function main() {
           ? `\nNo limit hits found in your ${seen.join(' and ')} logs from the last ${days} days.`
           : '\nNo Claude Code or Codex logs found on this computer.',
       );
-      console.log('You can still share a limit hit by hand at https://hitmylimit.com/share');
+      if (note) console.log(`\n${note}`);
+      console.log('\nYou can still share a limit hit by hand at https://hitmylimit.com/share');
       return;
     }
 
@@ -100,6 +102,7 @@ async function main() {
       console.log(hitLines(c, i, { sent: state.sent.includes(hitKey(c)), c: color }).join('\n'));
       console.log();
     });
+    if (note) console.log(`${note}\n`);
 
     // By default every hit not sent before is shared; --pick shares one, including one already sent.
     let chosen;
