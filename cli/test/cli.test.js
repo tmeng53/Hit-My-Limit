@@ -264,3 +264,53 @@ test('status: a window whose reset has passed shows as empty', async () => {
   const s = codexNow({ latest: { time: now - 3 * 3600_000, plan: null, snap: [{ used: 100, minutes: 300, resetsAt: now - 60_000 }] } }, now);
   assert.deepEqual(s.limits, [{ window: '5h', used: 0, resets_at: null }]);
 });
+
+test('Codex: usage before the period sets the baseline but is not counted', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const tc = (time, input) => ({
+    timestamp: T(time), type: 'event_msg',
+    payload: { type: 'token_count', info: { total_token_usage: { input_tokens: input, cached_input_tokens: 0, output_tokens: 0 } } },
+  });
+  writeFileSync(join(dir, 'rollout-3.jsonl'), lines([
+    tc('2026-09-01T10:00:00Z', 10_000), // before `since`
+    tc('2026-10-16T10:00:00Z', 10_100),
+  ]));
+  const { usage } = await readCodex([dir], since);
+  assert.equal(usage.length, 1);
+  assert.equal(usage[0].input, 100);
+});
+
+test('without a terminal, nothing is sent unless --yes is given', async () => {
+  const { createServer } = await import('node:http');
+  const { execFile } = await import('node:child_process');
+  let received = 0;
+  const server = createServer((req, res) => {
+    received++;
+    req.resume();
+    req.on('end', () => res.end('{"saved":true,"comparison":null}'));
+  });
+  await new Promise((r) => server.listen(0, r));
+  const home = mkdtempSync(join(tmpdir(), 'hml-home-'));
+  mkdirSync(join(home, '.codex', 'sessions'), { recursive: true });
+  const now = Date.now();
+  const at = (ago) => new Date(now - ago * 60_000).toISOString();
+  writeFileSync(join(home, '.codex', 'sessions', 'rollout-4.jsonl'), lines([
+    { timestamp: at(60), type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { input_tokens: 100, cached_input_tokens: 0, output_tokens: 10 } },
+      rate_limits: { plan_type: 'plus', primary: { used_percent: 100, window_minutes: 300, resets_at: Math.floor(now / 1000) + 3600 } } } },
+  ]));
+  const run = (args) => new Promise((resolve) => {
+    execFile(process.execPath, [new URL('../bin/hitmylimit.js', import.meta.url).pathname, ...args], {
+      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
+    }, (err, stdout) => resolve({ err, stdout }));
+  });
+  try {
+    const a = await run([]);
+    assert.equal(a.err, null);
+    assert.match(a.stdout, /Nothing was sent\. Run with --yes/);
+    assert.equal(received, 0);
+    await run(['--yes']);
+    assert.equal(received, 1);
+  } finally {
+    server.close();
+  }
+});

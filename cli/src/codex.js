@@ -54,7 +54,10 @@ export async function readCodex(dirs, since) {
         const time = Date.parse(e.timestamp);
         if (e.type === 'session_meta') version = p.cli_version ?? version;
         if (e.type === 'turn_context') model = p.model ?? model;
-        if (e.type !== 'event_msg' || !(time >= since)) return;
+        if (e.type !== 'event_msg') return;
+        // Counters before the period still set the baseline for the cumulative totals, but count nothing.
+        const early = !(time >= since);
+        if (early && p.type !== 'token_count') return;
 
         if (p.type === 'token_count') {
           const t = p.info?.total_token_usage;
@@ -69,11 +72,11 @@ export async function readCodex(dirs, since) {
             const grew = prev && Object.keys(cur).every((k) => cur[k] >= prev[k]);
             const d = grew ? Object.fromEntries(Object.keys(cur).map((k) => [k, cur[k] - prev[k]])) : cur;
             prev = cur;
-            if (d.input || d.output) {
+            if (!early && (d.input || d.output)) {
               usage.push({ time, model, version, input: d.input - d.cached, cacheRead: d.cached, output: d.output, reasoning: d.reasoning });
             }
           }
-          if (p.rate_limits) {
+          if (p.rate_limits && !early) {
             // Once a request is refused, Codex logs snapshots with empty windows; keep the last real one.
             const snap = snapshot(p.rate_limits, time);
             if (snap.length) last = snap;

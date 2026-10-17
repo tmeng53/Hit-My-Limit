@@ -72,7 +72,7 @@ sends prompts, code, file names or paths.
 --account <type>  own, shared or reseller (default own)
 --felt <answer>   sooner, usual or later than usual (not sent by default)
 --pick <n>        Share only this hit (default: all not sent yet)
---yes             Send without asking
+--yes             Send without asking (needed to send when not run in a terminal)
 --dry-run         Print the report and stop
 --json            Print JSON only
 ```
