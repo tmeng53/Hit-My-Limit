@@ -89,7 +89,7 @@ export const t = {
     logSub: 'Claude、ChatGPT、Codex 和 Gemini，附日期和来源。',
     lastChange: '最近一次',
     log: '全部变化',
-    plans: '方案',
+    plans: '套餐',
     dayAgo: '1 天前',
     daysAgo: '天前',
     today: '今天',
