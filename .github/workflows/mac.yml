@@ -47,6 +47,27 @@ jobs:
           name: HitMyLimit-mac
           path: mac/dist/*.zip
 
+      # Screenshots of the panel and the share window with sample data, for reviewing the design.
+      - name: Screenshots
+        if: github.event_name == 'pull_request'
+        run: |
+          APP="mac/dist/Hit My Limit.app/Contents/MacOS/HitMyLimit"
+          for mode in light dark; do
+            HITMYLIMIT_PREVIEW=1 HITMYLIMIT_APPEARANCE=$mode "$APP" &
+            PID=$!
+            sleep 8
+            screencapture -x "mac/dist/preview-$mode.png"
+            kill $PID
+            sleep 1
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: screenshots
+          path: mac/dist/*.png
+          if-no-files-found: ignore
+
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/mac-v')
         env:

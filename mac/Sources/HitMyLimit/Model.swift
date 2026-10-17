@@ -54,6 +54,10 @@ final class Model: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
+        if Preview.enabled {
+            Task { @MainActor in Preview.show(self) }
+            return
+        }
         Notify.ask()
         Task { await refresh() }
         Task { await refreshFeed() }

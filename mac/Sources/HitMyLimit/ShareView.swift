@@ -3,6 +3,7 @@ import SwiftUI
 // Asks for the plan where the logs don't have it, shows the exact reports, and sends them only on Send.
 struct ShareView: View {
     @ObservedObject var model: Model
+    var sample: String? = nil
     @State private var plans: [String: String] = [:]
     @State private var preview: String?
     @State private var result: String?
@@ -51,7 +52,7 @@ struct ShareView: View {
         .frame(width: 520)
         .onAppear {
             plans = model.status?.plans ?? [:]
-            preview = nil
+            preview = sample
             result = nil
             error = nil
         }
