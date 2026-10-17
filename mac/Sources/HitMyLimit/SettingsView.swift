@@ -18,14 +18,18 @@ struct SettingsView: View {
             Section("Notifications") {
                 Toggle("When a lab changes its usage limits", isOn: $model.notifyChanges)
                 Toggle("When a lab gives out a free limit reset", isOn: $model.notifyResets)
-                Toggle("At 90% of a limit (Codex only)", isOn: $model.notifyNearLimit)
+                Toggle("At 90% of a limit", isOn: $model.notifyNearLimit)
             }
             Section {
                 Toggle("Open at login", isOn: $model.openAtLogin)
             }
             Section("Privacy") {
-                LabeledContent("Reads") { Text("~/.claude/projects, ~/.codex/sessions").foregroundStyle(.secondary) }
-                LabeledContent("Never reads") { Text("logins, keys, browser cookies").foregroundStyle(.secondary) }
+                LabeledContent("Reads") {
+                    Text("Claude Code and Codex logs").foregroundStyle(.secondary)
+                        .help("~/.claude/projects (or ~/.config/claude/projects) and ~/.codex/sessions")
+                }
+                LabeledContent("Never reads") { Text("logins, API keys, browser cookies").foregroundStyle(.secondary) }
+                LabeledContent("Where") { Text("On this Mac. Nothing leaves it unless you share.").foregroundStyle(.secondary) }
             }
             HStack {
                 Button("Limits by plan") { Links.open(Links.limits) }

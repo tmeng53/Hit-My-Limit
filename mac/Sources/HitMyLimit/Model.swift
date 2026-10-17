@@ -25,13 +25,14 @@ final class Model: ObservableObject {
         didSet {
             do {
                 if openAtLogin { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            } catch {
+            } catch where !quietLogin {
                 self.error = "Couldn't change Open at login: \(error.localizedDescription)"
-            }
+            } catch {}
         }
     }
 
     private let defaults = UserDefaults.standard
+    private var quietLogin = false
     private var timers: [Timer] = []
     private var seenChanges: Set<String> {
         get { Set(defaults.stringArray(forKey: "seenChanges") ?? []) }
@@ -64,6 +65,15 @@ final class Model: ObservableObject {
             return
         }
         Notify.ask()
+        // Open at login starts on. Only on the first launch, so turning it off in Settings sticks.
+        if !defaults.bool(forKey: "loginSet") {
+            defaults.set(true, forKey: "loginSet")
+            // Run from Downloads without moving it to Applications, macOS may refuse; that's not worth an error.
+            quietLogin = true
+            if !openAtLogin { openAtLogin = true }
+            openAtLogin = SMAppService.mainApp.status == .enabled
+            quietLogin = false
+        }
         Task { await refresh() }
         Task { await refreshFeed() }
         timers = [
@@ -136,14 +146,25 @@ final class Model: ObservableObject {
     }
 
     private func warnNearLimit(_ s: Status) {
-        guard notifyNearLimit, labs.contains("openai") else { return }
+        guard notifyNearLimit else { return }
         var w = warned
-        for l in s.codex?.limits ?? [] where l.used >= 90 {
-            let key = "codex:\(l.window):\(Int(l.resets_at ?? 0))"
-            guard !w.contains(key) else { continue }
-            w.insert(key)
-            let when = l.resets_at.map { " It resets \(Format.when(date($0)))." } ?? ""
-            Notify.post(id: key, title: "Codex \(Options.windows[l.window] ?? l.window) limit \(Int(l.used))% used", body: "Based on your Codex logs.\(when)")
+        if labs.contains("openai") {
+            for l in s.codex?.limits ?? [] where l.used >= 90 {
+                let key = "codex:\(l.window):\(Int(l.resets_at ?? 0))"
+                guard !w.contains(key) else { continue }
+                w.insert(key)
+                let when = l.resets_at.map { " It resets \(Format.when(date($0)))." } ?? ""
+                Notify.post(id: key, title: "Codex \(Options.windows[l.window] ?? l.window) limit \(Int(l.used))% used", body: "Based on your Codex logs.\(when)")
+            }
+        }
+        // Claude Code logs no percentage, so this is against the tokens you usually reach before the limit.
+        if labs.contains("anthropic"), let win = s.claude?.window, let typical = win.typical_at_limit, typical > 0, win.tokens >= 0.9 * typical {
+            let key = "claude:5h:\(Int(win.resets_at))"
+            if !w.contains(key) {
+                w.insert(key)
+                Notify.post(id: key, title: "Claude Code at \(Int((100 * win.tokens / typical).rounded()))% of your usual limit",
+                            body: "\(Format.tokens(win.tokens)) of the \(Format.tokens(typical)) tokens you usually reach before the 5-hour limit. It resets \(Format.when(date(win.resets_at))).")
+            }
         }
         warned = w
     }

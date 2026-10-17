@@ -12,33 +12,72 @@ enum CLI {
         Bundle.main.resourceURL?.appendingPathComponent("cli/bin/hitmylimit.js")
     }
 
-    // Apps opened from Finder don't get the shell's PATH, so look where Node is usually installed.
-    static let node: URL? = {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        var candidates = ["/opt/homebrew/bin/node", "/usr/local/bin/node", "\(home)/.volta/bin/node", "\(home)/.local/bin/node"]
-        let nvm = "\(home)/.nvm/versions/node"
-        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvm) {
-            candidates += versions.sorted { $0.compare($1, options: .numeric) == .orderedDescending }.map { "\(nvm)/\($0)/bin/node" }
+    static let minimum = [18, 17]
+
+    // Apps opened from Finder don't get the shell's PATH, so look where Node is usually installed, ask a login
+    // shell too, and use the newest one. An old Node elsewhere on the Mac is skipped.
+    private static var found: URL?
+    private static let lock = NSLock()
+
+    // Remembered once found; looked up again on each try until then, so installing Node and refreshing works.
+    static func node() -> Result<URL, Failure> {
+        lock.lock()
+        defer { lock.unlock() }
+        if let found { return .success(found) }
+        let r = lookup()
+        if case .success(let url) = r { found = url }
+        return r
+    }
+
+    private static func lookup() -> Result<URL, Failure> {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser.path
+        var candidates = ["/opt/homebrew/bin/node", "/usr/local/bin/node", "\(home)/.volta/bin/node", "\(home)/.local/bin/node", "/usr/bin/node"]
+        // Version managers keep one folder per version.
+        for (dir, bin) in [
+            ("\(home)/.nvm/versions/node", "bin/node"),
+            ("\(home)/.fnm/node-versions", "installation/bin/node"),
+            ("\(home)/Library/Application Support/fnm/node-versions", "installation/bin/node"),
+            ("\(home)/.asdf/installs/nodejs", "bin/node"),
+            ("\(home)/.local/share/mise/installs/node", "bin/node"),
+            ("/usr/local/n/versions/node", "bin/node"),
+        ] {
+            for v in (try? fm.contentsOfDirectory(atPath: dir)) ?? [] { candidates.append("\(dir)/\(v)/\(bin)") }
         }
-        if let found = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
-            return URL(fileURLWithPath: found)
+        if let shell = output("/bin/zsh", ["-lc", "command -v node"]), shell.hasPrefix("/") { candidates.append(shell) }
+
+        var best: (URL, [Int])?
+        var old: (String, String)?
+        for path in Set(candidates) where fm.isExecutableFile(atPath: path) {
+            guard let v = output(path, ["-p", "process.versions.node"]) else { continue }
+            let parts = v.split(separator: ".").compactMap { Int($0) }
+            if parts.lexicographicallyPrecedes(minimum) { old = (v, path); continue }
+            if best == nil || best!.1.lexicographicallyPrecedes(parts) { best = (URL(fileURLWithPath: path), parts) }
         }
-        // Last try: ask a login shell.
+        if let best { return .success(best.0) }
+        if let old {
+            return .failure(Failure(message: "Hit My Limit needs Node.js 18.17 or later, and the newest one on this Mac is \(old.0). Install the current version from nodejs.org, then click the time at the top to try again."))
+        }
+        return .failure(Failure(message: "Hit My Limit needs Node.js for now. Install it from nodejs.org, then click the time at the top to try again."))
+    }
+
+    private static func output(_ exe: String, _ args: [String]) -> String? {
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = ["-lc", "command -v node"]
+        p.executableURL = URL(fileURLWithPath: exe)
+        p.arguments = args
         let out = Pipe()
         p.standardOutput = out
         p.standardError = Pipe()
-        try? p.run()
+        do { try p.run() } catch { return nil }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        let path = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return path.isEmpty ? nil : URL(fileURLWithPath: path)
-    }()
+        guard p.terminationStatus == 0 else { return nil }
+        let s = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return s.isEmpty ? nil : s.components(separatedBy: "\n").last
+    }
 
     static func run(_ args: [String]) async throws -> Data {
-        guard let node else { throw Failure(message: "Node.js is needed for now. Install it from nodejs.org or with Homebrew.") }
+        let node = try CLI.node().get()
         guard let script else { throw Failure(message: "The app is missing its copy of the hitmylimit tool.") }
         return try await withCheckedThrowingContinuation { cont in
             DispatchQueue.global(qos: .utility).async {
