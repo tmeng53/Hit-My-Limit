@@ -26,7 +26,8 @@ last 30 days, once a group has 20 reports. Reports from shared and resold accoun
 All reports are downloadable at `/data/reports.csv`.
 
 A report holds lab, product, plan, which limit, the date, minutes from window start to the limit (rounded to 5),
-kind of work, account type, and optionally model, token counts and tool version. It does not hold prompts, code,
+kind of work, account type, the UTC hour the window started, and optionally model, token counts per model,
+number of requests, weekly limit use and tool version. It does not hold prompts, code,
 account details, time zone or IP address. IP addresses are used only for a daily rate limit, stored as a salted
 hash and deleted the next day. The contributor id is random and hashed before it is stored.
 

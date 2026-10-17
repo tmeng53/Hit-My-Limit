@@ -3,7 +3,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { eachLine, jsonlFiles } from './files.js';
-import { modelBreakdown } from './models.js';
+import { windowSummary } from './models.js';
 
 export function codexDirs(env = process.env) {
   const root = env.CODEX_HOME || join(homedir(), '.codex');
@@ -56,12 +56,17 @@ export async function readCodex(dirs, since) {
           const t = p.info?.total_token_usage;
           if (t) {
             // Totals are cumulative per session; count only the increase since the previous event.
-            const cur = { input: t.input_tokens ?? 0, cached: t.cached_input_tokens ?? 0, output: t.output_tokens ?? 0 };
-            const grew = prev && cur.input >= prev.input && cur.output >= prev.output && cur.cached >= prev.cached;
-            const d = grew ? { input: cur.input - prev.input, cached: cur.cached - prev.cached, output: cur.output - prev.output } : cur;
+            const cur = {
+              input: t.input_tokens ?? 0,
+              cached: t.cached_input_tokens ?? 0,
+              output: t.output_tokens ?? 0,
+              reasoning: t.reasoning_output_tokens ?? 0,
+            };
+            const grew = prev && Object.keys(cur).every((k) => cur[k] >= prev[k]);
+            const d = grew ? Object.fromEntries(Object.keys(cur).map((k) => [k, cur[k] - prev[k]])) : cur;
             prev = cur;
             if (d.input || d.output) {
-              usage.push({ time, model, version, input: d.input - d.cached, cacheRead: d.cached, output: d.output });
+              usage.push({ time, model, version, input: d.input - d.cached, cacheRead: d.cached, output: d.output, reasoning: d.reasoning });
             }
           }
           if (p.rate_limits) {
@@ -69,12 +74,12 @@ export async function readCodex(dirs, since) {
             const snap = snapshot(p.rate_limits, time);
             if (snap.length) last = snap;
             plan = PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan;
-            for (const w of snap) if (w.used >= 100) hits.push({ time, ...w, plan, version });
+            for (const w of snap) if (w.used >= 100) hits.push({ time, ...w, plan, version, snap });
           }
         } else if (/usage limit/i.test(String(p.error?.message ?? p.message ?? '')) && (p.type === 'error' || p.type === 'task_complete')) {
           // "You've hit your usage limit" doesn't say which limit; use the fullest window from the last snapshot.
           const w = [...last].sort((a, b) => b.used - a.used)[0];
-          if (w && w.used >= 90) hits.push({ time, ...w, plan, version });
+          if (w && w.used >= 90) hits.push({ time, ...w, plan, version, snap: last });
         }
       });
     }
@@ -92,20 +97,12 @@ export function codexHits({ usage, hits }) {
     const start = h.resetsAt - h.minutes * 60_000;
     if (!(start < h.time)) continue;
     if (out.some((o) => o.window === kind && Math.abs(o.start - start) < 30 * 60_000)) continue;
-    out.push({ lab: 'openai', product: 'codex', window: kind, start, hit: h.time, plan: h.plan, version: h.version });
+    // How full the weekly limit was when a 5-hour limit ran out.
+    const weekly = kind === '5h' ? h.snap?.find((w) => windowKind(w.minutes) === 'weekly') : null;
+    out.push({
+      lab: 'openai', product: 'codex', window: kind, start, hit: h.time, plan: h.plan, version: h.version,
+      weekly_used: weekly ? Math.round(weekly.used) : null,
+    });
   }
-  return out.map((c) => {
-    const inWindow = usage.filter((u) => u.time >= c.start && u.time <= c.hit);
-    const sum = (k) => inWindow.reduce((n, u) => n + u[k], 0);
-    const { models, main } = modelBreakdown(inWindow, (m) => (m ? String(m).toLowerCase().slice(0, 40) : null));
-    const tokens = { input: sum('input'), output: sum('output'), cache_read: sum('cacheRead'), cache_write: 0 };
-    tokens.total = tokens.input + tokens.output + tokens.cache_read;
-    return {
-      ...c,
-      model: main,
-      models,
-      tokens: inWindow.length ? tokens : null,
-      tool_version: c.version ?? inWindow.at(-1)?.version ?? null,
-    };
-  });
+  return out.map((c) => ({ ...c, ...windowSummary(c, usage, (m) => (m ? String(m).toLowerCase().slice(0, 40) : null)) }));
 }

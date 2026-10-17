@@ -45,7 +45,7 @@ export interface Report {
   hit_on: string;
   model: string | null;
   // Tokens per model in the window, from the command-line tool.
-  models: Record<string, { total: number; output: number }> | null;
+  models: Record<string, ModelTokens> | null;
   work: (typeof WORK)[number];
   account: (typeof ACCOUNTS)[number];
   felt: (typeof FELT)[number] | null;
@@ -54,12 +54,21 @@ export interface Report {
   tokens_output: number | null;
   tokens_cache_read: number | null;
   tokens_cache_write: number | null;
+  // Part of output (Codex logs it separately).
+  tokens_reasoning: number | null;
+  // Model responses in the window, the UTC hour the window started, and for a 5-hour hit how full the weekly
+  // limit was (0–100). All from the command-line tool.
+  requests: number | null;
+  start_hour: number | null;
+  weekly_used: number | null;
   tool_version: string | null;
   source: 'form' | 'cli';
   client_id: string;
 }
 
 const MAX_TOKENS = 1e12;
+const MODEL_FIELDS = ['total', 'input', 'output', 'cache_read', 'cache_write', 'reasoning'] as const;
+type ModelTokens = Partial<Record<(typeof MODEL_FIELDS)[number], number>>;
 
 function has<T extends object>(obj: T, key: unknown): key is keyof T {
   return typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
@@ -80,13 +89,25 @@ function modelBreakdown(v: unknown): Report['models'] {
   const entries = Object.entries(v as Record<string, any>);
   if (entries.length === 0) return null;
   if (entries.length > 8) throw new Error('models has too many entries');
-  const out: Record<string, { total: number; output: number }> = {};
+  const out: Record<string, ModelTokens> = {};
   for (const [name, t] of entries) {
     const key = name.trim().toLowerCase();
     if (!MODEL.test(key)) throw new Error('models has an invalid model name');
-    out[key] = { total: tokenCount(t?.total, 'models.total') ?? 0, output: tokenCount(t?.output, 'models.output') ?? 0 };
+    const m: ModelTokens = {};
+    for (const f of MODEL_FIELDS) {
+      const n = tokenCount(t?.[f], `models.${f}`);
+      if (n !== null) m[f] = n;
+    }
+    out[key] = m;
   }
   return out;
+}
+
+function wholeNumber(v: unknown, name: string, max: number): number | null {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`${name} must be a whole number from 0 to ${max}`);
+  return n;
 }
 
 function shortText(v: unknown, name: string, pattern: RegExp): string | null {
@@ -149,6 +170,10 @@ export function parseReport(body: unknown, today = new Date()): Report {
     tokens_output: tokenCount(tokens.output, 'tokens.output'),
     tokens_cache_read: tokenCount(tokens.cache_read, 'tokens.cache_read'),
     tokens_cache_write: tokenCount(tokens.cache_write, 'tokens.cache_write'),
+    tokens_reasoning: tokenCount(tokens.reasoning, 'tokens.reasoning'),
+    requests: wholeNumber(b.requests, 'requests', 1_000_000),
+    start_hour: wholeNumber(b.start_hour, 'start_hour', 23),
+    weekly_used: window === '5h' ? wholeNumber(b.weekly_used, 'weekly_used', 100) : null,
     tool_version: shortText(b.tool_version, 'tool_version', /^[a-z0-9][a-z0-9 ._+-]{0,39}$/),
     source: b.source === 'cli' ? 'cli' : 'form',
     client_id: client,

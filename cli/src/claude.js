@@ -3,7 +3,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { eachLine, jsonlFiles } from './files.js';
-import { modelBreakdown } from './models.js';
+import { windowSummary } from './models.js';
 import { HOUR, DAY, parseReset } from './time.js';
 
 // e.g. "5-hour limit reached ∙ resets 3pm", "You've hit your session limit · resets 12:20am (America/New_York)"
@@ -104,17 +104,5 @@ export function claudeHits({ usage, hits }) {
 }
 
 function withTokens(c, usage) {
-  const inWindow = usage.filter((u) => u.time >= c.start && u.time <= c.hit);
-  const sum = (k) => inWindow.reduce((n, u) => n + u[k], 0);
-  const { models, main: model } = modelBreakdown(inWindow, modelFamily);
-  const tokens = { input: sum('input'), output: sum('output'), cache_read: sum('cacheRead'), cache_write: sum('cacheWrite') };
-  tokens.total = tokens.input + tokens.output + tokens.cache_read + tokens.cache_write;
-  return {
-    ...c,
-    model,
-    models,
-    tokens: inWindow.length ? tokens : null,
-    tool_version: c.version ?? inWindow.at(-1)?.version ?? null,
-    plan: null,
-  };
+  return { ...c, ...windowSummary(c, usage, modelFamily), weekly_used: null, plan: null };
 }

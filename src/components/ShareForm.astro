@@ -45,7 +45,7 @@ const text = {
     storedTitle: 'What is stored',
     stored: [
       'Lab, product, plan, which limit, and the date you hit it.',
-      'How long after the window started you hit the limit, rounded to 5 minutes. Not the clock time.',
+      'How long after the window started you hit the limit, rounded to 5 minutes, and the hour the window started in UTC. Not your clock time.',
       'Kind of work, account type, and how it compared with usual, the model and the token count if you give them.',
       'A random id kept in this browser, so repeat reports from one person can be counted once. It is hashed before it is stored.',
     ],
@@ -89,7 +89,7 @@ const text = {
     storedTitle: '会保存什么',
     stored: [
       '公司、产品、方案、哪个额度，以及触发上限的日期。',
-      '额度周期开始后多久触发上限，按 5 分钟取整。不保存具体时刻。',
+      '额度周期开始后多久触发上限（按 5 分钟取整），以及周期开始的整点（UTC）。不保存你当地的具体时刻。',
       '用途、账号类型，以及你填写的与平时的对比、模型和 token 数。',
       '一个保存在本浏览器里的随机 ID，用来识别同一个人的重复报告。保存前会做哈希处理。',
     ],
@@ -245,6 +245,7 @@ const strings = {
       felt: el('felt').value || null,
       model: el('model').value.trim() || null,
       tokens: { total: el('tokens').value.replace(/[^0-9]/g, '') || null },
+      start_hour: new Date(hit.getTime() - m * 60000).getUTCHours(),
       source: 'form',
       client_id: clientId(),
     };

@@ -50,8 +50,21 @@ test('felt is optional and limited to sooner, usual or later', () => {
 });
 
 test('models is an optional per-model token breakdown', () => {
-  const r = parseReport({ ...base, models: { Opus: { total: 100, output: 10 }, sonnet: { total: 50, output: 5 } } }, today);
-  assert.deepEqual(r.models, { opus: { total: 100, output: 10 }, sonnet: { total: 50, output: 5 } });
+  const r = parseReport({ ...base, models: { Opus: { total: 100, output: 10, cache_read: 80 }, sonnet: { total: 50, output: 5 } } }, today);
+  assert.deepEqual(r.models, { opus: { total: 100, output: 10, cache_read: 80 }, sonnet: { total: 50, output: 5 } });
   assert.throws(() => parseReport({ ...base, models: { '<x>': { total: 1 } } }, today));
   assert.throws(() => parseReport({ ...base, models: [1] }, today));
+});
+
+test('requests, start hour, weekly use and reasoning tokens are optional and range-checked', () => {
+  const r = parseReport({ ...base, requests: 412, start_hour: 14, weekly_used: 63, tokens: { reasoning: 900 } }, today);
+  assert.equal(r.requests, 412);
+  assert.equal(r.start_hour, 14);
+  assert.equal(r.weekly_used, 63);
+  assert.equal(r.tokens_reasoning, 900);
+  assert.equal(parseReport(base, today).start_hour, null);
+  assert.equal(parseReport({ ...base, window: 'weekly', minutes_to_limit: 3000, weekly_used: 50 }, today).weekly_used, null);
+  assert.throws(() => parseReport({ ...base, start_hour: 24 }, today));
+  assert.throws(() => parseReport({ ...base, weekly_used: 101 }, today));
+  assert.throws(() => parseReport({ ...base, requests: -1 }, today));
 });

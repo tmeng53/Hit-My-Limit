@@ -29,12 +29,21 @@ create table if not exists reports (
   tokens_output bigint,
   tokens_cache_read bigint,
   tokens_cache_write bigint,
+  tokens_reasoning bigint,
+  requests integer,
+  start_hour smallint,
+  weekly_used smallint,
   tool_version text,
   source text not null,
   contributor text not null,
   hidden boolean not null default false,
   unique (contributor, lab, limit_window, hit_on, minutes_to_limit)
 );
+-- Columns added after the first version of the table.
+alter table reports add column if not exists tokens_reasoning bigint;
+alter table reports add column if not exists requests integer;
+alter table reports add column if not exists start_hour smallint;
+alter table reports add column if not exists weekly_used smallint;
 create index if not exists reports_group on reports (lab, plan, limit_window, hit_on);
 -- Daily submission counts per hashed IP address, used only for rate limiting. Rows older than today are deleted.
 create table if not exists submit_counts (
@@ -89,14 +98,16 @@ export async function saveReport(r: Report): Promise<boolean> {
   const p = await db();
   const { rowCount } = await p.query(
     `insert into reports (hit_on, lab, product, plan, limit_window, minutes_to_limit, model, work, account,
-       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt, models)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+       tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt, models,
+       tokens_reasoning, requests, start_hour, weekly_used)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      on conflict do nothing`,
     [
       r.hit_on, r.lab, r.product, r.plan, r.window, r.minutes_to_limit, r.model, r.work, r.account,
       r.tokens_total, r.tokens_input, r.tokens_output, r.tokens_cache_read, r.tokens_cache_write,
       r.tool_version, r.source, sha(r.client_id), r.felt,
       r.models && JSON.stringify(r.models),
+      r.tokens_reasoning, r.requests, r.start_hour, r.weekly_used,
     ],
   );
   return rowCount === 1;
@@ -178,6 +189,7 @@ export const CSV_COLUMNS = [
   'id', 'hit_on', 'lab', 'product', 'plan', 'limit_window', 'minutes_to_limit', 'model', 'work', 'account',
   'tokens_total', 'tokens_input', 'tokens_output', 'tokens_cache_read', 'tokens_cache_write',
   'tool_version', 'source', 'contributor', 'felt', 'models',
+  'tokens_reasoning', 'requests', 'start_hour', 'weekly_used',
 ] as const;
 
 // Every visible report, for the public dataset.

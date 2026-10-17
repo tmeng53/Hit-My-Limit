@@ -31,16 +31,27 @@ sends prompts, code, file names or paths.
   "minutes_to_limit": 155,
   "hit_on": "2026-10-16",
   "model": "opus",
-  "models": { "opus": { "total": 3600000, "output": 35000 }, "sonnet": { "total": 601030, "output": 6000 } },
+  "models": {
+    "opus": { "total": 3600000, "input": 25, "output": 35000, "cache_read": 3340000, "cache_write": 224975 },
+    "sonnet": { "total": 601030, "input": 5, "output": 6000, "cache_read": 560000, "cache_write": 35025 }
+  },
   "work": "coding",
   "account": "own",
   "felt": "sooner",
   "tokens": { "input": 30, "output": 41000, "cache_read": 3900000, "cache_write": 260000, "total": 4201030 },
+  "requests": 412,
+  "start_hour": 14,
+  "weekly_used": null,
   "tool_version": "2.1.160",
   "source": "cli",
   "client_id": "random id made on your computer"
 }
 ```
+
+- `requests`: how many model responses the window took.
+- `start_hour`: the hour the window started, in UTC (0–23).
+- `weekly_used`: Codex only. How full the weekly limit was, in percent, when a 5-hour limit ran out.
+- Codex reports also carry `reasoning` tokens, which are part of `output`.
 
 `client_id` and the list of reports you have sent are kept in `~/.config/hitmylimit/state.json`.
 

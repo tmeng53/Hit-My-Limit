@@ -56,14 +56,16 @@ test('Claude Code: finds a 5-hour hit, its window and the tokens used in it', as
   assert.equal(h.window, '5h');
   assert.equal(new Date(h.start).toISOString(), '2026-10-16T09:00:00.000Z');
   assert.equal(h.model, 'opus');
-  assert.deepEqual(h.models, { opus: { total: 33330, output: 300 } });
+  assert.deepEqual(h.models, { opus: { total: 33330, input: 30, output: 300, cache_read: 30000, cache_write: 3000 } });
+  assert.equal(h.requests, 3);
+  assert.equal(h.start_hour, 9);
   assert.deepEqual(h.tokens, { input: 30, output: 300, cache_read: 30000, cache_write: 3000, total: 33330 });
 
   const r = buildReport(h, { plan: 'max-5x', work: 'coding', account: 'own', clientId: 'a'.repeat(32) });
   assert.equal(r.minutes_to_limit, 165);
   assert.equal(r.hit_on, '2026-10-16');
   assert.equal(r.tool_version, '2.1.160');
-  assert.deepEqual(Object.keys(r).sort(), ['account', 'client_id', 'felt', 'hit_on', 'lab', 'minutes_to_limit', 'model', 'models', 'plan', 'product', 'source', 'tokens', 'tool_version', 'window', 'work']);
+  assert.deepEqual(Object.keys(r).sort(), ['account', 'client_id', 'felt', 'hit_on', 'lab', 'minutes_to_limit', 'model', 'models', 'plan', 'product', 'requests', 'source', 'start_hour', 'tokens', 'tool_version', 'weekly_used', 'window', 'work']);
 });
 
 test('Claude Code: without a reset time, uses the 5-hour window the hit falls in', async () => {
@@ -93,7 +95,7 @@ test('Codex: finds a weekly hit from rate-limit snapshots and sums token increas
     timestamp: T(time), type: 'event_msg',
     payload: {
       type: 'token_count',
-      info: { total_token_usage: { input_tokens: total, cached_input_tokens: total / 2, output_tokens: total / 10, total_tokens: total * 1.1 } },
+      info: { total_token_usage: { input_tokens: total, cached_input_tokens: total / 2, output_tokens: total / 10, reasoning_output_tokens: total / 20, total_tokens: total * 1.1 } },
       rate_limits: {
         plan_type: 'plus',
         primary: { used_percent: 40, window_minutes: 300, resets_at: resetsAt - 3 * 86400 },
@@ -117,7 +119,10 @@ test('Codex: finds a weekly hit from rate-limit snapshots and sums token increas
   assert.equal(h.model, 'gpt-5-codex');
   assert.equal(h.tool_version, '0.80.0');
   assert.equal(new Date(h.start).toISOString(), '2026-10-13T00:00:00.000Z');
-  assert.deepEqual(h.tokens, { input: 1500, output: 300, cache_read: 1500, cache_write: 0, total: 3300 });
+  assert.deepEqual(h.tokens, { input: 1500, output: 300, cache_read: 1500, cache_write: 0, total: 3300, reasoning: 150 });
+  assert.equal(h.models['gpt-5-codex'].reasoning, 150);
+  assert.equal(h.requests, 2);
+  assert.equal(h.weekly_used, null); // only reported for 5-hour hits
   const r = buildReport(h, { plan: 'plus', work: 'coding', account: 'own', clientId: 'a'.repeat(32) });
   assert.equal(r.minutes_to_limit, 3 * 1440 + 9 * 60);
 });
@@ -146,6 +151,8 @@ test('Codex: finds a hit recorded as a refused turn after the last snapshot', as
   assert.equal(hits[0].window, '5h');
   assert.equal(hits[0].plan, 'plus');
   assert.equal(new Date(hits[0].start).toISOString(), '2026-10-04T00:00:00.000Z');
+  assert.equal(hits[0].weekly_used, 15);
+  assert.equal(hits[0].start_hour, 0);
 });
 
 test('Claude Code: reads "session limit" notices and the 12:20am reset format', async () => {
