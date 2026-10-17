@@ -46,7 +46,7 @@ export interface Report {
   model: string | null;
   // Tokens per model in the window, from the command-line tool.
   models: Record<string, ModelTokens> | null;
-  work: (typeof WORK)[number];
+  work: (typeof WORK)[number] | null;
   account: (typeof ACCOUNTS)[number];
   felt: (typeof FELT)[number] | null;
   tokens_total: number | null;
@@ -143,7 +143,8 @@ export function parseReport(body: unknown, today = new Date()): Report {
     throw new Error('hit_on must be a date (YYYY-MM-DD) within the last 60 days');
   }
 
-  if (!WORK.includes(b.work)) throw new Error('work must be coding, chat, research or other');
+  const work = b.work ?? null;
+  if (work !== null && !WORK.includes(work)) throw new Error('work must be coding, chat, research or other');
   const account = b.account ?? 'own';
   if (!ACCOUNTS.includes(account)) throw new Error('account must be own, shared or reseller');
   const felt = b.felt ?? null;
@@ -162,7 +163,7 @@ export function parseReport(body: unknown, today = new Date()): Report {
     hit_on: b.hit_on,
     model: shortText(b.model, 'model', MODEL),
     models: modelBreakdown(b.models),
-    work: b.work,
+    work,
     account,
     felt,
     tokens_total: tokenCount(tokens.total ?? b.tokens_total, 'tokens.total'),

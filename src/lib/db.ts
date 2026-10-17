@@ -21,7 +21,7 @@ create table if not exists reports (
   minutes_to_limit integer not null,
   model text,
   models jsonb,
-  work text not null,
+  work text,
   account text not null,
   felt text,
   tokens_total bigint,
@@ -44,6 +44,7 @@ alter table reports add column if not exists tokens_reasoning bigint;
 alter table reports add column if not exists requests integer;
 alter table reports add column if not exists start_hour smallint;
 alter table reports add column if not exists weekly_used smallint;
+alter table reports alter column work drop not null;
 create index if not exists reports_group on reports (lab, plan, limit_window, hit_on);
 -- Daily submission counts per hashed IP address, used only for rate limiting. Rows older than today are deleted.
 create table if not exists submit_counts (
@@ -136,7 +137,7 @@ export async function compare(r: Report): Promise<Comparison> {
     );
     return rows[0] as { n: number; longer: number };
   };
-  for (const sameWork of [true, false]) {
+  for (const sameWork of r.work ? [true, false] : [false]) {
     const { n, longer } = await run(sameWork);
     if (n >= MIN_GROUP) return { percent: Math.round((100 * longer) / n), n, sameWork };
   }

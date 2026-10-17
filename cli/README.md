@@ -6,7 +6,7 @@ Share when you hit an AI usage limit, from your local Claude Code and Codex logs
 npx hitmylimit
 ```
 
-It finds the times you hit a 5-hour or weekly limit in the last 30 days, asks for your plan and the kind of work,
+It finds the times you hit a usage limit in the last 30 days, asks which plan you were on (unless Codex logged it),
 prints the exact report, and sends it to [hitmylimit.com](https://hitmylimit.com/limits) only if you say yes.
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the
 tool tells you how your report compares.
@@ -67,9 +67,9 @@ sends prompts, code, file names or paths.
 ```
 --days <n>        How far back to look (default 30)
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200
---work <kind>     coding, chat, research or other
---account <type>  own, shared or reseller
---felt <answer>   sooner, usual or later than usual (optional)
+--work <kind>     coding, chat, research or other (default coding)
+--account <type>  own, shared or reseller (default own)
+--felt <answer>   sooner, usual or later than usual (not sent by default)
 --pick <n>        Which limit hit to share
 --yes             Send without asking
 --dry-run         Print the report and stop

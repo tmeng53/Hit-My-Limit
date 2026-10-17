@@ -15,7 +15,6 @@ const text = {
     cliBody: 'If you use Claude Code or Codex, run this in a terminal. It reads the logs those tools already keep on your computer, finds the times you hit a limit, and shows you the report before sending it.',
     cliMore: 'Source code',
     formTitle: 'By hand',
-    lab: 'Lab',
     product: 'Product',
     plan: 'Plan',
     window: 'Which limit',
@@ -32,6 +31,7 @@ const text = {
     model: 'Model',
     tokens: 'Tokens used',
     optional: 'optional',
+    more: 'More details (optional)',
     preview: 'Hit the limit {t} after the window started.',
     previewBad: 'The reset time must be after the hit time, and within one window of it.',
     send: 'Send report',
@@ -59,7 +59,6 @@ const text = {
     cliBody: '如果你用 Claude Code 或 Codex，在终端里运行下面的命令。它会读取这些工具已保存在你电脑上的日志，找出你触发上限的时间，并在发送前给你看报告内容。',
     cliMore: '源代码',
     formTitle: '手动填写',
-    lab: '公司',
     product: '产品',
     plan: '方案',
     window: '哪个额度',
@@ -76,6 +75,7 @@ const text = {
     model: '模型',
     tokens: '已用 token',
     optional: '选填',
+    more: '更多信息（选填）',
     preview: '额度周期开始后 {t} 触发上限。',
     previewBad: '重置时间必须晚于触发时间，且相差不超过一个周期。',
     send: '发送报告',
@@ -99,9 +99,9 @@ const text = {
 }[lang];
 
 const labNames = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google' };
-// Passed to the page script so product, plan and model lists follow the chosen lab.
+// Passed to the page script so the plan and model lists follow the chosen product's lab.
 const options = Object.fromEntries(
-  Object.entries(OPTIONS).map(([lab, o]) => [lab, { products: o.products, plans: o.plans, models: o.models }]),
+  Object.entries(OPTIONS).map(([lab, o]) => [lab, { plans: o.plans, models: o.models }]),
 );
 const strings = {
   preview: text.preview, previewBad: text.previewBad, send: text.send, sending: text.sending, sent: text.sent, dup: text.dup,
@@ -123,10 +123,15 @@ const strings = {
 <section>
   <h2>{text.formTitle}</h2>
   <form id="report" novalidate>
-    <label class="field"><span>{text.lab}</span>
-      <select name="lab">{Object.entries(labNames).map(([k, v]) => <option value={k}>{v}</option>)}</select>
+    <label class="field"><span>{text.product}</span>
+      <select name="product">
+        {Object.entries(OPTIONS).map(([lab, o]) => (
+          <optgroup label={labNames[lab as keyof typeof labNames]}>
+            {Object.entries(o.products).map(([k, v]) => <option value={`${lab}:${k}`}>{v}</option>)}
+          </optgroup>
+        ))}
+      </select>
     </label>
-    <label class="field"><span>{text.product}</span><select name="product"></select></label>
     <label class="field"><span>{text.plan}</span><select name="plan"></select></label>
     <label class="field"><span>{text.window}</span>
       <select name="window">{Object.keys(WINDOWS).map((w) => <option value={w}>{text.windows[w as keyof typeof WINDOWS]}</option>)}</select>
@@ -135,21 +140,24 @@ const strings = {
     <label class="field"><span>{text.resets}</span>
       <span class="stack"><input type="datetime-local" name="resets" required /><small>{text.resetsHint}</small></span>
     </label>
-    <label class="field"><span>{text.work}</span>
-      <select name="work">{WORK.map((w) => <option value={w}>{text.works[w]}</option>)}</select>
-    </label>
-    <label class="field"><span>{text.account}</span>
-      <select name="account">{ACCOUNTS.map((a) => <option value={a}>{text.accounts[a]}</option>)}</select>
-    </label>
-    <label class="field"><span>{text.felt} <small>{text.optional}</small></span>
-      <select name="felt"><option value="">–</option>{FELT.map((f) => <option value={f}>{text.felts[f]}</option>)}</select>
-    </label>
-    <label class="field"><span>{text.model} <small>{text.optional}</small></span>
-      <input name="model" list="models" maxlength="40" autocomplete="off" /><datalist id="models"></datalist>
-    </label>
-    <label class="field"><span>{text.tokens} <small>{text.optional}</small></span>
-      <input name="tokens" inputmode="numeric" pattern="[0-9]*" maxlength="15" autocomplete="off" />
-    </label>
+    <details>
+      <summary>{text.more}</summary>
+      <label class="field"><span>{text.work}</span>
+        <select name="work"><option value="">–</option>{WORK.map((w) => <option value={w}>{text.works[w]}</option>)}</select>
+      </label>
+      <label class="field"><span>{text.account}</span>
+        <select name="account">{ACCOUNTS.map((a) => <option value={a}>{text.accounts[a]}</option>)}</select>
+      </label>
+      <label class="field"><span>{text.felt}</span>
+        <select name="felt"><option value="">–</option>{FELT.map((f) => <option value={f}>{text.felts[f]}</option>)}</select>
+      </label>
+      <label class="field"><span>{text.model}</span>
+        <input name="model" list="models" maxlength="40" autocomplete="off" /><datalist id="models"></datalist>
+      </label>
+      <label class="field"><span>{text.tokens}</span>
+        <input name="tokens" inputmode="numeric" pattern="[0-9]*" maxlength="15" autocomplete="off" />
+      </label>
+    </details>
     <div class="after">
       <p class="preview" aria-live="polite"></p>
       <button type="submit">{text.send}</button>
@@ -175,13 +183,18 @@ const strings = {
   function fill(select, entries) {
     select.replaceChildren(...entries.map(([v, label]) => new Option(label, v)));
   }
+  // The product value is "lab:product"; the plan and model lists follow the lab.
+  const lab = () => el('product').value.split(':')[0];
   function onLab() {
-    const o = options[el('lab').value];
-    fill(el('product'), Object.entries(o.products));
+    const o = options[lab()];
     fill(el('plan'), Object.entries(o.plans));
     document.getElementById('models').replaceChildren(...o.models.map((m) => new Option(m)));
   }
-  el('lab').addEventListener('change', onLab);
+  let current = lab();
+  el('product').addEventListener('change', () => {
+    if (lab() !== current) onLab();
+    current = lab();
+  });
   onLab();
 
   // Local time without seconds, as datetime-local wants it.
@@ -234,13 +247,13 @@ const strings = {
     }
     const hit = new Date(Date.parse(el('hit').value));
     const report = {
-      lab: el('lab').value,
-      product: el('product').value,
+      lab: lab(),
+      product: el('product').value.split(':')[1],
       plan: el('plan').value,
       window: el('window').value,
       minutes_to_limit: m,
       hit_on: hit.toISOString().slice(0, 10),
-      work: el('work').value,
+      work: el('work').value || null,
       account: el('account').value,
       felt: el('felt').value || null,
       model: el('model').value.trim() || null,
@@ -286,6 +299,9 @@ const strings = {
   .meta { font-size: var(--s-sm); color: var(--muted); }
   pre { margin: 0 0 12px; padding: 12px 16px; border: 1px solid var(--line); background: var(--hover); font: inherit; max-width: 440px; }
 
+  details { padding: 8px 0; }
+  summary { cursor: pointer; color: var(--muted); padding: 8px 0; }
+  summary:hover { color: var(--fg); }
   .field { display: grid; grid-template-columns: 22ch minmax(0, 440px); gap: 16px; align-items: baseline; padding: 8px 0; }
   .field > span:first-child { color: var(--muted); }
   .field small, .stack small { color: var(--muted); font-size: var(--s-sm); }

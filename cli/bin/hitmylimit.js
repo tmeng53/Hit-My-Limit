@@ -21,7 +21,7 @@ Options:
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200
   --work <kind>     coding, chat, research or other (default coding)
   --account <type>  own, shared or reseller (default own)
-  --felt <answer>   Compared with usual: sooner, usual or later (optional)
+  --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
   --pick <n>        Which limit hit to share, as numbered in the list (default 1)
   --yes             Send without asking (still prints the report)
   --dry-run         Print the report and stop
@@ -126,20 +126,26 @@ async function main() {
       return console.log('\nAll of these were already sent. Use --pick to send one again.');
     }
 
-    // The plan logged at the time of the hit wins. Otherwise the last answer is only a suggestion, since people
-    // change plans; without a prompt to confirm it, --plan is required.
+    // The plan Codex logged at the time of the hit is used as is. Otherwise the last answer is only a suggestion,
+    // since people change plans; without a prompt to confirm it, --plan is required.
     if (!rl && !o.plan && !c.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
-    const suggested = c.plan ?? state.plans[c.lab] ?? undefined;
-    const plan = await ask(
-      `Your ${c.lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan on ${isoDay(new Date(c.hit))}, when you hit the limit:`,
-      PLANS[c.lab],
-      suggested,
-      o.plan,
-    );
-    const work = await ask('Kind of work:', WORK, 'coding', o.work);
-    const account = await ask('Account:', ACCOUNTS, 'own', o.account);
-
-    const felt = await ask('Did you hit the limit sooner or later than usual?', FELT, 'skip', o.felt);
+    const plan = c.plan && !o.plan
+      ? c.plan
+      : await ask(
+        `Your ${c.lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan on ${isoDay(new Date(c.hit))}, when you hit the limit:`,
+        PLANS[c.lab],
+        state.plans[c.lab],
+        o.plan,
+      );
+    // The rest has defaults and is only set with options, so the plan is the one question.
+    const option = (choices, value, fallback) => {
+      if (value === undefined) return fallback;
+      if (choices.some(([k]) => k === value)) return value;
+      throw new Error(`"${value}" is not one of: ${choices.map(([k]) => k).join(', ')}`);
+    };
+    const work = option(WORK, o.work, 'coding');
+    const account = option(ACCOUNTS, o.account, 'own');
+    const felt = option(FELT, o.felt, null);
     const report = buildReport(c, { plan, work, account, felt: felt === 'skip' ? null : felt, clientId: state.client_id });
     console.log('\nThis is everything that will be sent:\n');
     console.log(JSON.stringify(report, null, 2));
@@ -147,8 +153,8 @@ async function main() {
 
     if (o['dry-run']) return console.log('\nDry run: nothing was sent.');
     if (rl) {
-      const a = (await rl.question('\nSend it? [y/N]: ')).trim().toLowerCase();
-      if (a !== 'y' && a !== 'yes') return console.log('Nothing was sent.');
+      const a = (await rl.question('\nSend it? [Y/n]: ')).trim().toLowerCase();
+      if (a !== '' && a !== 'y' && a !== 'yes') return console.log('Nothing was sent.');
     }
 
     const result = await send(o.api, report);

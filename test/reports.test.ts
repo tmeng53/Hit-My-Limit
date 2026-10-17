@@ -68,3 +68,8 @@ test('requests, start hour, weekly use and reasoning tokens are optional and ran
   assert.throws(() => parseReport({ ...base, weekly_used: 101 }, today));
   assert.throws(() => parseReport({ ...base, requests: -1 }, today));
 });
+
+test('work is optional', () => {
+  assert.equal(parseReport({ ...base, work: undefined }, today).work, null);
+  assert.equal(parseReport(base, today).work, 'coding');
+});
