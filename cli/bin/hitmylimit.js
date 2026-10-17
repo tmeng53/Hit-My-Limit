@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { createInterface } from 'node:readline/promises';
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { claudeDirs, claudeHits, readClaude } from '../src/claude.js';
 import { codexDirs, codexHits, readCodex } from '../src/codex.js';
 import { ACCOUNTS, FELT, PLANS, WORK } from '../src/options.js';
 import { buildReport, comparisonLine, send } from '../src/report.js';
+import { select } from '../src/select.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
 import { colors, hitLines, unreadNote } from '../src/display.js';
 import { DAY } from '../src/time.js';
@@ -57,23 +57,17 @@ async function main() {
   const days = Math.max(1, Math.min(60, Number(o.days) || 30));
   const since = Date.now() - days * DAY;
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !o.yes;
-  const rl = interactive ? createInterface({ input: process.stdin, output: process.stdout }) : null;
   const color = colors(process.stdout.isTTY && !process.env.NO_COLOR);
+  const menu = (question, choices, start) => select(question, choices, start, { c: color });
 
   const ask = async (question, choices, fallback, preset) => {
     if (preset !== undefined) {
       if (choices.some(([k]) => k === preset)) return preset;
       throw new Error(`"${preset}" is not one of: ${choices.map(([k]) => k).join(', ')}`);
     }
-    const def = Math.max(1, choices.findIndex(([k]) => k === fallback) + 1);
-    if (!rl) return choices[def - 1][0];
-    console.log(`\n${question}`);
-    choices.forEach(([, label], i) => console.log(`  ${String(i + 1).padStart(2)}  ${label}`));
-    for (;;) {
-      const a = (await rl.question(`[${def}]: `)).trim();
-      const n = a === '' ? def : Number(a);
-      if (Number.isInteger(n) && n >= 1 && n <= choices.length) return choices[n - 1][0];
-    }
+    const def = Math.max(0, choices.findIndex(([k]) => k === fallback));
+    if (!interactive) return choices[def][0];
+    return menu(question, choices, def);
   };
 
   try {
@@ -119,7 +113,7 @@ async function main() {
     // the last answer is only a suggestion, since people change plans. Without a prompt, --plan is required.
     const plans = {};
     for (const lab of [...new Set(chosen.filter((c) => !c.plan).map((c) => c.lab))]) {
-      if (!rl && !o.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
+      if (!interactive && !o.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
       const n = chosen.filter((c) => c.lab === lab).length;
       plans[lab] = await ask(
         `Your ${lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan when you hit ${n === 1 ? 'this limit' : 'these limits'}:`,
@@ -138,12 +132,12 @@ async function main() {
     const account = option(ACCOUNTS, o.account, 'own');
     // One optional keystroke, asked once for all the hits being sent.
     let felt = option(FELT, o.felt, null);
-    if (rl && o.felt === undefined) {
-      const a = (await rl.question(
-        `\nDid ${chosen.length === 1 ? 'this limit' : 'these limits'} run out sooner than you're used to?\n` +
-        `  s = sooner   u = about the same   l = later   Enter = skip: `,
-      )).trim().toLowerCase();
-      felt = { s: 'sooner', u: 'usual', l: 'later' }[a[0]] ?? null;
+    if (interactive && o.felt === undefined) {
+      felt = await menu(
+        `Did ${chosen.length === 1 ? 'this limit' : 'these limits'} run out sooner than you're used to?`,
+        [['skip', 'Skip'], ['sooner', 'Sooner than usual'], ['usual', 'About the same'], ['later', 'Later than usual']],
+        0,
+      );
     }
     const reports = chosen.map((c) => buildReport(c, {
       plan: plans[c.lab] ?? c.plan,
@@ -158,18 +152,15 @@ async function main() {
       console.log('\nclient_id is a random id made on this computer. It is hashed before it is stored.');
     };
 
-    if (o['dry-run'] || !rl) showData();
+    if (o['dry-run'] || !interactive) showData();
     if (o['dry-run']) return console.log('\nDry run: nothing was sent.');
-    if (rl) {
+    if (interactive) {
       const what = reports.length === 1 ? 'this report' : `these ${reports.length} reports`;
       for (;;) {
-        const a = (await rl.question(`\nSend ${what} to hitmylimit.com? [Y/n, d = show the exact data]: `)).trim().toLowerCase();
-        if (a === 'd') {
-          showData();
-          continue;
-        }
-        if (a !== '' && a !== 'y' && a !== 'yes') return console.log('Nothing was sent.');
-        break;
+        const a = await menu(`Send ${what} to hitmylimit.com?`, [['send', 'Send'], ['show', 'Show the exact data first'], ['cancel', 'Cancel']], 0);
+        if (a === 'show') showData();
+        else if (a === 'cancel') return console.log('Nothing was sent.');
+        else break;
       }
     }
 
@@ -188,8 +179,9 @@ async function main() {
       ? `\n${last.duplicate ? 'This report was already sent.' : 'Sent. Thank you.'} ${comparisonLine(last.comparison)}`
       : `\nSent ${reports.length} reports. Thank you.`);
     console.log('Results by plan: https://hitmylimit.com/limits');
-  } finally {
-    rl?.close();
+  } catch (e) {
+    if (e.message === 'Nothing was sent.') return console.log(e.message);
+    throw e;
   }
 }
 
