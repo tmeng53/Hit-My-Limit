@@ -38,7 +38,6 @@ export const t = {
     subscribe: 'Subscribe',
     rss: 'RSS',
     other: '中文',
-    otherHref: '/zh/',
     displayOnly: 'display only',
     latest: 'Most recent change per lab',
     log: 'All changes',
@@ -48,6 +47,10 @@ export const t = {
     alertsLead: 'Email me when a limit changes',
     codeLicense: 'Code: MIT',
     dataLicense: 'Data: CC BY 4.0',
+    navLog: 'changes',
+    navLimits: 'limits',
+    navShare: 'share',
+    notAffiliated: 'Not affiliated with Anthropic, OpenAI or Google',
   },
   zh: {
     tagline: 'AI 用量额度变化记录',
@@ -72,7 +75,6 @@ export const t = {
     subscribe: '订阅',
     rss: 'RSS',
     other: 'English',
-    otherHref: '/',
     displayOnly: '仅显示方式',
     latest: '各家最近一次变化',
     log: '全部变化',
@@ -82,6 +84,10 @@ export const t = {
     alertsLead: '额度有变化时发邮件提醒我',
     codeLicense: '代码：MIT',
     dataLicense: '数据：CC BY 4.0',
+    navLog: '变化',
+    navLimits: '额度数据',
+    navShare: '分享',
+    notAffiliated: '与 Anthropic、OpenAI、Google 无关联',
   },
 } as const;
 

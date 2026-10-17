@@ -1,0 +1,11 @@
+---
+import Base from '../../layouts/Base.astro';
+import Limits from '../../components/Limits.astro';
+
+// Rendered on request and cached at the edge for 5 minutes.
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'public, s-maxage=300, stale-while-revalidate=3600');
+---
+<Base lang="zh" path="/limits" title="额度数据">
+  <Limits lang="zh" />
+</Base>

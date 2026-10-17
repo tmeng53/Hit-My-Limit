@@ -1,0 +1,27 @@
+{
+  "name": "hitmylimit",
+  "version": "0.1.0",
+  "description": "Share when you hit an AI usage limit, from your local Claude Code and Codex logs",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "hitmylimit": "bin/hitmylimit.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tmeng53/hit-my-limit.git",
+    "directory": "cli"
+  },
+  "homepage": "https://hitmylimit.com/share",
+  "keywords": ["claude-code", "codex", "usage", "rate-limit"]
+}
