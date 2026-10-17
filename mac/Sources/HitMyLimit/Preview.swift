@@ -13,9 +13,12 @@ enum Preview {
         let start = (now / h).rounded(.down) * h - 2 * h
         let json = """
         {"generated_at":\(now),
-         "claude":{"window":{"start":\(start),"resets_at":\(start + 5 * h),"tokens":2900000,"requests":214,"typical_at_limit":4600000,"past_hits":4},
+         "claude":{"window":{"start":\(start),"resets_at":\(start + 5 * h),"tokens":2900000,"requests":214,"typical_at_limit":4600000,"past_hits":4,
+                   "models":{"opus":{"total":2450000,"input":20,"output":28000,"cache_read":2300000,"cache_write":121980},"haiku":{"total":450000,"input":10,"output":5000,"cache_read":420000,"cache_write":24990}}},
                    "limited_until":null,"week_tokens":31200000,"last_used":\(now - 60_000)},
-         "codex":{"as_of":\(now - 300_000),"plan":"plus","limits":[
+         "codex":{"as_of":\(now - 300_000),"plan":"plus","window_start":\(now - 2.5 * h),
+                  "models":{"gpt-5.1-codex":{"total":1800000,"input":400000,"output":60000,"cache_read":1340000,"cache_write":0},"gpt-5.1-codex-mini":{"total":300000,"input":90000,"output":10000,"cache_read":200000,"cache_write":0}},
+                  "limits":[
                    {"window":"5h","used":43,"resets_at":\(now + 2.5 * h)},
                    {"window":"weekly","used":71,"resets_at":\(now + 3 * d)}]},
          "hits":[

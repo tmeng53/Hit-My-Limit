@@ -81,6 +81,32 @@ struct TrendChip: View {
     }
 }
 
+// Tokens per model in the open window, largest first. Input, output and cache are in the tooltip.
+struct ModelList: View {
+    let label: String
+    let models: [String: Status.ModelTokens]
+    let tint: Color
+
+    var body: some View {
+        let list = models.sorted { $0.value.total > $1.value.total }
+        let top = max(1, list.first?.value.total ?? 1)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+            ForEach(list, id: \.key) { name, m in
+                HStack(spacing: 8) {
+                    Text(name).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+                        .frame(width: 96, alignment: .leading)
+                    Bar(fraction: m.total / top, tint: tint.opacity(0.7), height: 3)
+                    Text(Format.tokens(m.total)).font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                        .frame(minWidth: 44, alignment: .trailing)
+                }
+                .help("Input \(Format.tokens(m.input)), output \(Format.tokens(m.output)), cache read \(Format.tokens(m.cache_read)), cache write \(Format.tokens(m.cache_write))")
+            }
+        }
+        .padding(.top, 4)
+    }
+}
+
 // A row that highlights on hover, for clickable lists.
 struct HoverRow<Content: View>: View {
     var action: () -> Void

@@ -9,6 +9,7 @@ struct Status: Decodable {
         let requests: Int
         let typical_at_limit: Double?
         let past_hits: Int
+        let models: [String: ModelTokens]?
     }
     struct Claude: Decodable {
         let window: ClaudeWindow?
@@ -24,6 +25,9 @@ struct Status: Decodable {
     struct Codex: Decodable {
         let as_of: Double
         let plan: String?
+        // Tokens per model since the open 5-hour window started.
+        let window_start: Double?
+        let models: [String: ModelTokens]?
         let limits: [CodexLimit]
     }
     struct ModelTokens: Decodable {

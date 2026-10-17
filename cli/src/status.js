@@ -1,7 +1,8 @@
 // What the menu bar app shows: how full each limit is now, the recent limit hits, and how the tokens you got
 // before a limit compare with your earlier hits. Built from the same log reads as the report flow.
-import { fiveHourWindows } from './claude.js';
-import { windowKind } from './codex.js';
+import { fiveHourWindows, modelFamily } from './claude.js';
+import { codexModel, windowKind } from './codex.js';
+import { modelBreakdown } from './models.js';
 import { hitKey } from './state.js';
 import { DAY, HOUR } from './time.js';
 
@@ -32,6 +33,7 @@ export function claudeNow(claude, hits, now) {
           requests: inWindow.length,
           typical_at_limit: median(past.map((h) => h.tokens.total)),
           past_hits: past.length,
+          models: modelBreakdown(inWindow, modelFamily).models,
         }
       : null,
     limited_until: blocked ? blocked.start + (blocked.window === 'weekly' ? 7 * DAY : 5 * HOUR) : null,
@@ -44,9 +46,14 @@ export function claudeNow(claude, hits, now) {
 export function codexNow(codex, now) {
   const l = codex.latest;
   if (!l) return null;
+  // Tokens per model in the open 5-hour window, counted from the window's start (its reset time less 5 hours).
+  const five = l.snap.find((w) => windowKind(w.minutes) === '5h' && w.resetsAt > now);
+  const since = five ? five.resetsAt - five.minutes * 60_000 : null;
   return {
     as_of: l.time,
     plan: l.plan,
+    window_start: since,
+    models: since === null ? null : modelBreakdown(codex.usage.filter((u) => u.time >= since && u.time <= now), codexModel).models,
     limits: l.snap
       .map((w) => {
         const reset = w.resetsAt && w.resetsAt <= now;

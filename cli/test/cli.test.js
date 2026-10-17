@@ -243,12 +243,14 @@ test('status: open Claude window next to earlier hits, Codex windows, and a drop
   assert.equal(new Date(s.claude.window.resets_at).toISOString(), '2026-10-17T14:00:00.000Z');
   assert.equal(s.claude.window.tokens, 1_500_000);
   assert.equal(s.claude.window.typical_at_limit, 4_000_000);
+  assert.equal(Object.values(s.claude.window.models).reduce((n, m) => n + m.total, 0), 1_500_000);
   assert.equal(s.claude.limited_until, null);
   assert.deepEqual(s.codex.limits, [
     { window: '5h', used: 43, resets_at: reset5h * 1000 },
     { window: 'weekly', used: 30, resets_at: (reset5h + 3 * 86400) * 1000 },
   ]);
   assert.equal(s.codex.plan, 'plus');
+  assert.equal(new Date(s.codex.window_start).toISOString(), new Date(reset5h * 1000 - 5 * 3600_000).toISOString());
   assert.equal(s.hits.length, 3);
   assert.match(s.hits[0].key, /^anthropic:5h:2026-10-15T09:00/);
   // The same per-model tokens the report would send.

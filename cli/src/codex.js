@@ -105,6 +105,8 @@ export async function readCodex(dirs, since) {
 
 export { windowKind };
 
+export const codexModel = (m) => (m ? String(m).toLowerCase().slice(0, 40) : null);
+
 export function codexHits(data) {
   const { usage, hits } = data;
   const out = [];
@@ -123,5 +125,5 @@ export function codexHits(data) {
       weekly_used: weekly ? Math.round(weekly.used) : null,
     });
   }
-  return out.map((c) => ({ ...c, ...windowSummary(c, usage, (m) => (m ? String(m).toLowerCase().slice(0, 40) : null)) }));
+  return out.map((c) => ({ ...c, ...windowSummary(c, usage, codexModel) }));
 }
