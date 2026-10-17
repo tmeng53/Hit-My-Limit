@@ -16,6 +16,17 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/cli"
 cp "$BIN" "$APP/Contents/MacOS/HitMyLimit"
 sed "s/VERSION/$VERSION/g" Info.plist > "$APP/Contents/Info.plist"
 cp -R ../cli/bin ../cli/src ../cli/package.json "$APP/Contents/Resources/cli/"
+cp Resources/MenuBarIconTemplate.png Resources/MenuBarIconTemplate@2x.png "$APP/Contents/Resources/"
+
+# App icon: every size macOS asks for, made from the 1024px master.
+ICONSET="dist/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for s in 16 32 128 256 512; do
+  sips -z $s $s Resources/AppIcon-1024.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+  sips -z $((s * 2)) $((s * 2)) Resources/AppIcon-1024.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+rm -rf "$ICONSET"
 
 if [ -n "${SIGN_IDENTITY:-}" ]; then
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"

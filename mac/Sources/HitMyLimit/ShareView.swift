@@ -39,10 +39,9 @@ struct ShareView: View {
     private var form: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                Image(systemName: "chart.bar.xaxis.ascending")
-                    .font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Share your limit hits").font(.system(size: 16, weight: .semibold))
                     Text("Reports from many people show when a plan's limit gets smaller without an announcement.")

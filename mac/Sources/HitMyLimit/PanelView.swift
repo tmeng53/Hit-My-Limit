@@ -27,9 +27,9 @@ struct PanelView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: "gauge.with.dots.needle.67percent")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.tint)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Hit My Limit").font(.system(size: 13, weight: .semibold))
                 if let s = model.status {
