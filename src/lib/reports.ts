@@ -11,7 +11,7 @@ export const OPTIONS = {
     models: ['opus', 'sonnet', 'haiku'],
   },
   openai: {
-    products: { codex: 'Codex', chatgpt: 'ChatGPT' },
+    products: { codex: 'Codex', 'codex-review': 'Codex code review', chatgpt: 'ChatGPT' },
     plans: { free: 'Free', go: 'Go', plus: 'Plus', 'pro-100': 'Pro 100', 'pro-200': 'Pro 200', 'pro-500': 'Pro 500', business: 'Business', enterprise: 'Enterprise', other: 'Other' },
     models: [],
   },
