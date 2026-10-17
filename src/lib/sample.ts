@@ -20,6 +20,14 @@ export const SAMPLE: HomeData = {
     { lab: 'anthropic', shares: [['opus', 78], ['sonnet', 20], ['haiku', 2]] },
     { lab: 'openai', shares: [['gpt-5-codex', 64], ['gpt-5', 31], ['gpt-5-mini', 5]] },
   ],
+  trend: {
+    weeks: ['2026-07-27', '2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12'],
+    labs: [
+      { lab: 'anthropic', minutes: [152, 148, 153, 146, 149, 141, 138, 124, 121, 117, 112, 110] },
+      { lab: 'openai', minutes: [82, 80, 84, 81, 79, 78, 80, 77, 76, 75, 77, 76] },
+      { lab: 'google', minutes: [null, null, null, null, null, null, null, null, null, null, null, null] },
+    ],
+  },
   sooner: [
     { week: '2026-08-24', pct: 38, n: 61 },
     { week: '2026-08-31', pct: 41, n: 74 },

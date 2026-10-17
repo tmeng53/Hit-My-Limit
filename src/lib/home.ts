@@ -21,6 +21,8 @@ export interface HomeData {
   plans: PlanRow[];
   // Share of tokens per model, in percent, by lab.
   models: { lab: string; shares: [string, number][] }[];
+  // Median minutes into the 5-hour window before people hit the limit, per lab and week (oldest first).
+  trend: { weeks: string[]; labs: { lab: string; minutes: (number | null)[] }[] };
   // Share of reports per week that said the limit came sooner than usual.
   sooner: { week: string; pct: number; n: number }[];
 }
