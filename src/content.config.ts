@@ -12,7 +12,8 @@ const changes = defineCollection({
     lab: z.enum(['anthropic', 'openai', 'google']),
     product: z.string(),
     plans: z.array(z.string()).default([]),
-    kind: z.enum(['limit', 'display']),
+    // reset = a lab reset people's limits early, for free (after an outage, a launch, etc.)
+    kind: z.enum(['limit', 'display', 'reset']),
     // Which way limits moved for users; neutral for display-only changes
     direction: z.enum(['tighter', 'looser', 'mixed', 'neutral']),
     title: z.string().max(90),

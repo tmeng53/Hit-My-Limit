@@ -9,6 +9,13 @@ const OFFICIAL = [
   'theinformation.com', 'wired.com', 'reuters.com', 'bloomberg.com',
 ];
 const LABS = { anthropic: 'anthropic', openai: 'openai', google: 'google' };
+// Where each lab speaks for itself. A free reset sourced here skips review, since resets only matter for a few hours.
+const LAB_OWNED = {
+  anthropic: ['anthropic.com', 'claude.com', 'claude.ai', 'github.com/anthropics', 'x.com/anthropicai', 'x.com/claudeai'],
+  openai: ['openai.com', 'chatgpt.com', 'github.com/openai', 'x.com/openai', 'x.com/openaidevs', 'x.com/chatgptapp'],
+  google: ['blog.google', 'gemini.google.com', 'ai.google.dev', 'github.com/google-gemini', 'x.com/googleai', 'x.com/geminiapp'],
+};
+const KINDS = { 'Usage limit changed': 'limit', 'How usage is displayed changed': 'display', 'Free limit reset': 'reset' };
 const DIRECTIONS = { Tighter: 'tighter', Looser: 'looser', Mixed: 'mixed', 'Display only': 'neutral' };
 
 function parseIssueForm(body) {
@@ -59,6 +66,7 @@ try {
 for (const key of ['Product', 'What changed, in one line', 'Details']) {
   if (!f[key]) problems.push(`"${key}" is empty.`);
 }
+if ((f['What changed, in one line'] ?? '').length > 90) problems.push('"What changed, in one line" must be 90 characters or fewer.');
 
 if (problems.length) {
   output('ok', 'false');
@@ -70,6 +78,16 @@ const reachable = await checkSource(source.href);
 const host = source.hostname.replace(/^www\./, '');
 const official = OFFICIAL.some((d) => (host + source.pathname).startsWith(d) || host.endsWith('.' + d) || host === d);
 const status = reachable && official ? 'confirmed' : 'unconfirmed';
+const kind = KINDS[f['Kind of change']] ?? 'limit';
+// Matches "domain" or "domain/first-path-segment", case-insensitive. twitter.com counts as x.com.
+const xHost = host.replace(/^(mobile\.)?(twitter|x)\.com$/, 'x.com');
+const firstSegment = (source.pathname.split('/')[1] ?? '').toLowerCase();
+const labOwned = LAB_OWNED[lab].some((d) => {
+  const [domain, segment] = d.split('/');
+  return (xHost === domain || xHost.endsWith('.' + domain)) && (!segment || firstSegment === segment);
+});
+// X doesn't serve posts to bots, so the link check only counts for other sites.
+const fast = kind === 'reset' && labOwned && (reachable || xHost === 'x.com');
 const title = f['What changed, in one line'];
 const plans = (f['Plans affected'] ?? '').split(',').map((p) => p.trim()).filter(Boolean);
 const file = `src/content/changes/${date}-${lab}-${slugify(title)}.md`;
@@ -80,8 +98,8 @@ date_kind: reported
 lab: ${lab}
 product: ${yamlString(f['Product'])}
 plans: [${plans.map(yamlString).join(', ')}]
-kind: ${f['Kind of change'].startsWith('How usage') ? 'display' : 'limit'}
-direction: ${DIRECTIONS[f['Did limits get tighter or looser?']] ?? 'mixed'}
+kind: ${kind}
+direction: ${kind === 'reset' ? 'looser' : DIRECTIONS[f['Did limits get tighter or looser?']] ?? 'mixed'}
 title: ${yamlString(title)}
 summary: ${yamlString(f['Details'])}
 source_url: ${yamlString(source.href)}
@@ -94,7 +112,10 @@ status: ${status}
 output('ok', 'true');
 output('file', file);
 output('title', title);
+output('labels', kind === 'reset' ? 'submission,reset' : 'submission');
+output('fast', String(fast));
 output('notes', [
   reachable ? '- Source link loads.' : '- Source link did not load. Check it before approving.',
   official ? '- Source is an official or press site.' : '- Source is not on the official or press list, so the entry is marked unconfirmed.',
+  ...(fast ? ["- Free reset sourced from the lab's own channel, so it was merged without review. Revert this PR if it's wrong."] : []),
 ].join('\n'));

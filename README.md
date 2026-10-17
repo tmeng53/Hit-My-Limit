@@ -10,6 +10,8 @@ Covers Anthropic (Claude, Claude Code), OpenAI (ChatGPT, Codex) and Google (Gemi
 2. A GitHub Action checks the source link and opens a pull request with the drafted entry.
    Sources from the labs or major press are marked confirmed; anything else is marked unconfirmed.
 3. A maintainer reviews the pull request. Merging it publishes the entry.
+   Free limit resets are the exception: when the source is the lab's own site or official X account,
+   the pull request is merged right away, because a reset is only useful for a few hours.
 
 Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The schema is in `src/content.config.ts`.
 
@@ -17,6 +19,8 @@ Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The
 
 - `/rss.xml` (English), `/zh/rss.xml` (Chinese), `/rss/anthropic.xml`, `/rss/openai.xml`, `/rss/google.xml`
 - Email alerts through Buttondown (username set in `src/lib/site.ts`)
+- Each feed item has one `<category>`: `limit`, `display` or `reset`. `reset` means a lab reset limits early for free;
+  the Mac app shows those as their own notification.
 
 ## Usage reports
 
