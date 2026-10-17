@@ -1,5 +1,6 @@
 ---
 import { ACCOUNTS, FELT, OPTIONS, WINDOWS, WORK } from '../lib/reports';
+import Term from './Term.astro';
 import { REPO_URL, type Lang } from '../lib/site';
 
 interface Props {
@@ -9,10 +10,12 @@ const { lang } = Astro.props;
 
 const text = {
   en: {
-    h1: 'Share when you hit a usage limit',
-    lead: 'Reports are anonymous and pooled by plan. Once a plan has 20 reports, the limits page shows how long people on it usually last before hitting the limit.',
+    h1: 'Hit a limit? Send it in.',
+    lead: 'Anonymous. Takes a minute.',
+    copy: 'copy',
+    copied: 'copied',
     cliTitle: 'From your logs',
-    cliBody: 'If you use Claude Code or Codex, run this in a terminal. It reads the logs those tools already keep on your computer, finds the times you hit a limit, and shows you the report before sending it.',
+    cliBody: 'For Claude Code and Codex. Reads the logs already on your computer, finds your limit hits, and shows you everything before sending.',
     cliMore: 'Source code',
     formTitle: 'By hand',
     product: 'Product',
@@ -44,19 +47,22 @@ const text = {
     error: 'Could not send the report: ',
     storedTitle: 'What is stored',
     stored: [
-      'Lab, product, plan, which limit, and the date you hit it.',
-      'How long after the window started you hit the limit, rounded to 5 minutes, and the hour the window started in UTC. Not your clock time.',
-      'Kind of work, account type, and how it compared with usual, the model and the token count if you give them.',
-      'A random id kept in this browser, so repeat reports from one person can be counted once. It is hashed before it is stored.',
+      'lab, product, plan, which limit, date',
+      'minutes from window start to the limit (rounded to 5), window start hour in UTC',
+      'kind of work, account type, how it compared with usual, model, tokens',
+      'a random id from this browser, hashed, so one person counts once',
     ],
-    notStored: 'Not stored: prompts, code, file names, account details, email, time zone or IP address. Your IP address is used only to limit how many reports one address can send per day, as a hash that is deleted the next day.',
+    notStoredItems: ['prompts, code, file names', 'account details, email', 'your clock time, time zone, IP address'],
+    ipNote: 'Your IP address is only used to limit reports per day, as a hash deleted the next day.',
     data: 'All reports are public as a CSV file under CC BY 4.0:',
   },
   zh: {
-    h1: '触发用量上限时，分享一下',
-    lead: '报告是匿名的，按方案汇总。一个方案收到 20 份报告后，额度数据页会显示该方案的用户通常用多久会触发上限。',
+    h1: '撞上限了？报一下。',
+    lead: '匿名，一分钟。',
+    copy: '复制',
+    copied: '已复制',
     cliTitle: '从日志读取',
-    cliBody: '如果你用 Claude Code 或 Codex，在终端里运行下面的命令。它会读取这些工具已保存在你电脑上的日志，找出你触发上限的时间，并在发送前给你看报告内容。',
+    cliBody: '适用于 Claude Code 和 Codex。读取电脑上已有的日志，找出撞上限的时间，发送前全部给你看。',
     cliMore: '源代码',
     formTitle: '手动填写',
     product: '产品',
@@ -88,12 +94,13 @@ const text = {
     error: '发送失败：',
     storedTitle: '会保存什么',
     stored: [
-      '公司、产品、方案、哪个额度，以及触发上限的日期。',
-      '额度周期开始后多久触发上限（按 5 分钟取整），以及周期开始的整点（UTC）。不保存你当地的具体时刻。',
-      '用途、账号类型，以及你填写的与平时的对比、模型和 token 数。',
-      '一个保存在本浏览器里的随机 ID，用来识别同一个人的重复报告。保存前会做哈希处理。',
+      '公司、产品、方案、哪个额度、日期',
+      '周期开始后多久撞上限（按 5 分钟取整），周期开始的整点（UTC）',
+      '用途、账号类型、与平时相比、模型、token 数',
+      '本浏览器的随机 ID（哈希后保存），同一个人只算一次',
     ],
-    notStored: '不保存：提示词、代码、文件名、账号信息、邮箱、时区或 IP 地址。IP 地址只用于限制每个地址每天能发送的报告数，以哈希形式保存，第二天删除。',
+    notStoredItems: ['提示词、代码、文件名', '账号信息、邮箱', '你当地的时刻、时区、IP 地址'],
+    ipNote: 'IP 地址只用于限制每天的报告数，以哈希形式保存，第二天删除。',
     data: '所有报告以 CSV 文件公开，采用 CC BY 4.0 协议：',
   },
 }[lang];
@@ -116,7 +123,7 @@ const strings = {
 <section>
   <h2>{text.cliTitle}</h2>
   <p>{text.cliBody}</p>
-  <pre><code>npx hitmylimit</code></pre>
+  <Term copy={text.copy} copied={text.copied} />
   <p class="meta"><a href={`${REPO_URL}/tree/main/cli`}>{text.cliMore} ↗</a></p>
 </section>
 
@@ -168,8 +175,11 @@ const strings = {
 
 <section class="stored">
   <h2>{text.storedTitle}</h2>
-  <ul>{text.stored.map((x) => <li>{x}</li>)}</ul>
-  <p>{text.notStored}</p>
+  <ul class="diff">
+    {text.stored.map((x) => <li class="plus"><span>+</span>{x}</li>)}
+    {text.notStoredItems.map((x) => <li class="minus"><span>−</span>{x}</li>)}
+  </ul>
+  <p>{text.ipNote}</p>
   <p>{text.data} <a href="/data/reports.csv">/data/reports.csv</a></p>
 </section>
 
@@ -290,14 +300,13 @@ const strings = {
 </script>
 
 <style>
-  .intro { padding: 48px 0 8px; }
-  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 16px; max-width: 30em; }
+  .intro { padding: 56px 0 8px; }
+  h1 { font: 600 28px/1.25 var(--font); letter-spacing: -0.02em; margin: 0 0 10px; }
   .lead { margin: 0; max-width: 62ch; color: var(--muted); }
   h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   section + section { margin-top: 48px; }
   section > p { max-width: 62ch; margin: 0 0 12px; }
-  .meta { font-size: var(--s-sm); color: var(--muted); }
-  pre { margin: 0 0 12px; padding: 12px 16px; border: 1px solid var(--line); background: var(--hover); font: inherit; max-width: 440px; }
+  .meta { font-size: var(--s-sm); color: var(--muted); margin-top: 10px; }
 
   details { padding: 8px 0; }
   summary { cursor: pointer; color: var(--muted); padding: 8px 0; }
@@ -307,6 +316,7 @@ const strings = {
   .field small, .stack small { color: var(--muted); font-size: var(--s-sm); }
   .stack { display: grid; gap: 4px; }
   select, input { width: 100%; height: 36px; padding: 0 8px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 0; }
+  select { appearance: none; padding-right: 28px; background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 14px center / 5px 5px no-repeat, linear-gradient(-45deg, transparent 50%, var(--muted) 50%) right 9px center / 5px 5px no-repeat; }
   select:focus, input:focus { outline: none; border-color: var(--fg); }
   select option { background: var(--bg); color: var(--fg); }
   .after { display: grid; grid-template-columns: 22ch minmax(0, 440px); column-gap: 16px; }
@@ -316,13 +326,19 @@ const strings = {
   button { height: 40px; padding: 0 16px; font: inherit; border: 0; border-radius: 0; background: var(--fg); color: var(--bg); cursor: pointer; }
   button:disabled { opacity: 0.6; cursor: default; }
 
-  .stored ul { margin: 0 0 12px; padding-left: 2ch; max-width: 62ch; }
-  .stored li { margin-bottom: 4px; }
+  .diff { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--line); max-width: 72ch; }
+  .diff li { display: grid; grid-template-columns: 3ch 1fr; padding: 6px 12px 6px 8px; }
+  .diff li span { font-weight: 600; }
+  .diff .plus { background: var(--plus-bg); }
+  .diff .plus span { color: var(--plus); }
+  .diff .minus { background: var(--minus-bg); }
+  .diff .minus span { color: var(--minus); }
   .stored p { color: var(--muted); font-size: var(--s-sm); }
   .stored a { text-decoration: underline; text-underline-offset: 3px; }
 
   @media (max-width: 640px) {
-    .intro { padding: 24px 0 0; }
+    .intro { padding: 32px 0 0; }
+    h1 { font-size: 22px; }
     .field { grid-template-columns: 1fr; gap: 4px; }
     .after { grid-template-columns: 1fr; }
     .after > * { grid-column: 1; }

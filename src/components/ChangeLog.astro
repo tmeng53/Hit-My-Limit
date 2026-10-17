@@ -14,7 +14,14 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 ---
 <section class="intro">
-  <h1>{s.lead}</h1>
+  <h1>{s.logTitle}</h1>
+  <p class="sub">{s.logSub}</p>
+  <p class="last">
+    {s.lastChange}:{' '}
+    {latest.map((c, i) => (
+      <>{i > 0 && ' · '}<a href={`#${c.id}`}>{LABS[c.data.lab][lang]} <span class="ago" data-date={isoDate(c.data.date)}>{isoDate(c.data.date)}</span></a></>
+    ))}
+  </p>
   <form action={`https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USER}`} method="post" target="_blank">
     <label for="email">{s.alertsLead}</label>
     <div>
@@ -23,23 +30,6 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
       <button type="submit">{s.subscribe}</button>
     </div>
   </form>
-</section>
-
-<section>
-  <h2>{s.latest}</h2>
-  <ul class="rows">
-    {latest.map((c) => (
-      <li>
-        <a class="row" href={`#${c.id}`}>
-          <span class="lab">{LABS[c.data.lab][lang]}</span>
-          <time datetime={isoDate(c.data.date)}>{isoDate(c.data.date)}</time>
-          <span class={`mark ${c.data.direction}`}>{MARK[c.data.direction]}</span>
-          <span class="title">{c.data.kind === 'reset' && <span class="tag" title={s.resetHint}>{s.resetTag}</span>}{titleFor(c, lang)}</span>
-          <span class="ago" data-date={isoDate(c.data.date)}></span>
-        </a>
-      </li>
-    ))}
-  </ul>
 </section>
 
 <section>
@@ -87,7 +77,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   </ol>
 </section>
 
-<script define:vars={{ daysAgo: s.daysAgo, today: s.today }}>
+<script define:vars={{ dayAgo: s.dayAgo, daysAgo: s.daysAgo, today: s.today }}>
   const buttons = document.querySelectorAll('[data-filter]');
   const items = document.querySelectorAll('.log li');
   for (const b of buttons) {
@@ -102,7 +92,7 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   const now = Date.now();
   for (const el of document.querySelectorAll('.ago')) {
     const days = Math.floor((now - Date.parse(el.dataset.date)) / 86400000);
-    el.textContent = days < 1 ? today : `${days} ${daysAgo}`;
+    el.textContent = days < 1 ? today : days === 1 ? dayAgo : `${days} ${daysAgo}`;
   }
 
   // Open the entry a link points to.
@@ -121,8 +111,12 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
 </script>
 
 <style>
-  .intro { padding: 48px 0 8px; }
-  h1 { font-size: var(--s-lg); font-weight: 500; line-height: 1.5; margin: 0 0 32px; max-width: 30em; }
+  .intro { padding: 56px 0 8px; }
+  h1 { font: 600 28px/1.25 var(--font); letter-spacing: -0.02em; margin: 0 0 10px; }
+  .sub { margin: 0 0 20px; color: var(--muted); }
+  .last { margin: 0 0 32px; font-size: var(--s-sm); color: var(--muted); }
+  .last a { color: var(--fg); }
+  .last .ago { color: var(--muted); }
   h2 { font-size: var(--s-sm); font-weight: 400; color: var(--muted); margin: 0; }
   section + section { margin-top: 48px; }
   section > h2 { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
@@ -170,7 +164,8 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   .legend { display: flex; gap: 4px 20px; flex-wrap: wrap; margin: 0; padding: 8px 0; font-size: var(--s-sm); color: var(--muted); border-bottom: 1px solid var(--line); }
 
   @media (max-width: 640px) {
-    .intro { padding: 24px 0 0; }
+    .intro { padding: 32px 0 0; }
+    h1 { font-size: 22px; }
     .row { grid-template-columns: 2ch 1fr; gap: 2px 8px; padding: 12px 0; }
     .row .lab, .row time { grid-row: 1; font-size: var(--s-sm); }
     .row .lab { grid-column: 2; }

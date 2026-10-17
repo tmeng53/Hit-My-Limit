@@ -1,10 +1,26 @@
 ---
 import Base from '../layouts/Base.astro';
-import ChangeLog from '../components/ChangeLog.astro';
+import Home from '../components/Home.astro';
 import { getChanges } from '../lib/site';
+import { dbConfigured, homeData } from '../lib/db';
+import { emptyHome } from '../lib/home';
+import { SAMPLE } from '../lib/sample';
 
+// Rendered on request and cached at the edge, like the limits page.
+export const prerender = false;
+Astro.response.headers.set('cache-control', 'public, s-maxage=300, stale-while-revalidate=3600');
 const changes = await getChanges();
+let data = emptyHome();
+if (dbConfigured()) {
+  try {
+    data = await homeData();
+  } catch (e) {
+    console.error(e);
+  }
+}
+// In development, /?sample shows made-up numbers for design work.
+if (import.meta.env.DEV && Astro.url.searchParams.has('sample')) data = SAMPLE;
 ---
 <Base lang="en">
-  <ChangeLog lang="en" changes={changes} />
+  <Home lang="en" data={data} changes={changes} />
 </Base>

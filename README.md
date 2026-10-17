@@ -1,8 +1,16 @@
 # Hit My Limit
 
-A public log of every change to AI subscription usage limits, and to how labs display them, with a date and a source,
-plus anonymous reports of when people hit those limits.
+Anonymous reports of when people hit AI usage limits, and a log of every change to those limits (and to how labs
+display them) with a date and a source.
 Covers Anthropic (Claude, Claude Code), OpenAI (ChatGPT, Codex) and Google (Gemini, Gemini CLI). English at `/`, Chinese at `/zh/`.
+
+## Pages
+
+- `/`: how long people last before the 5-hour limit, per plan. Weekly medians over the last 12 weeks (a week counts once it
+  has 10 reports), a was → now row per plan, and a chart with one plan per lab. Plans under 20 reports show as pending.
+  In development, `/?sample` shows made-up numbers from `src/lib/sample.ts`.
+- `/limits`: medians, middle half and change against 12 weeks earlier for every plan and limit.
+- `/changes`: the change log. `/share`: the report form.
 
 ## How entries get added
 
@@ -36,6 +44,9 @@ account details, time zone or IP address. IP addresses are used only for a daily
 hash and deleted the next day. The contributor id is random and hashed before it is stored.
 
 - `POST /api/reports` takes one report as JSON. Validation is in `src/lib/reports.ts`.
+  The response includes `comparison`: how many other recent reports on the same plan and limit lasted longer
+  (`percent`, `n`). Once the group has 20 reports it also has `median_minutes` and a histogram of minutes to
+  the limit: `bin_minutes` (15 for 5h, 60 daily, 360 weekly, 1440 monthly) and `bins`, counts from 0 to the window length.
 - Storage is Postgres (`DATABASE_URL` or `POSTGRES_URL`). Tables are created on first use; see `src/lib/db.ts`.
 - To remove a bad report: `update reports set hidden = true where id = ...`.
 

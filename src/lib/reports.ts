@@ -28,6 +28,8 @@ export type Lab = keyof typeof OPTIONS;
 // Monthly windows vary with the month's length, so they allow up to 31 days.
 export const WINDOWS = { '5h': 300, daily: 1440, weekly: 10080, monthly: 44640 } as const;
 export type LimitWindow = keyof typeof WINDOWS;
+// Bin width for the distribution of minutes to the limit: 20 bins for 5h, 24 for daily, 28 for weekly, 31 for monthly.
+export const BIN_MINUTES = { '5h': 15, daily: 60, weekly: 360, monthly: 1440 } as const satisfies Record<LimitWindow, number>;
 
 export const WORK = ['coding', 'chat', 'research', 'other'] as const;
 // own = paid the lab directly (personal or work seat); shared = an account used by several people;
