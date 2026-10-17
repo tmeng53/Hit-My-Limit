@@ -47,8 +47,8 @@ jobs:
           name: HitMyLimit-mac
           path: mac/dist/*.zip
 
-      # Screenshots of the panel and the share window with sample data, for reviewing the design. They go to
-      # the ci-screenshots branch, which holds only the latest set.
+      # Screenshots of the panel and the share window with sample data, for reviewing the design. They are
+      # pushed to refs/screenshots/pr-<number>, outside the branches, so nothing deploys them.
       - name: Screenshots
         if: github.event_name == 'pull_request'
         run: |
@@ -68,7 +68,7 @@ jobs:
           done
           ls -la shots
           cd shots
-          git init -q -b ci-screenshots
-          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q --allow-empty -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
-          git add . && git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q --amend -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
+          git init -q
+          git add .
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/screenshots/pr-${{ github.event.pull_request.number }}
