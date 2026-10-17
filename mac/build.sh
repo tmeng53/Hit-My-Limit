@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds "Hit My Limit.app" into mac/dist, with a copy of the hitmylimit tool from cli/ inside it.
+# Builds "Hit My Limit.app" and a disk image for it into mac/dist, with a copy of the hitmylimit tool from cli/ inside it.
 # Signs with Developer ID and notarizes when SIGN_IDENTITY and the notary variables are set;
 # otherwise signs ad hoc, which runs on this Mac but warns on others.
 set -euo pipefail
@@ -56,13 +56,20 @@ else
 fi
 codesign --verify --verbose "$APP"
 
-ZIP="dist/HitMyLimit-$VERSION.zip"
-ditto -c -k --keepParent "$APP" "$ZIP"
+# A disk image with the app next to a link to Applications, so installing is one drag.
+DMG="dist/HitMyLimit-$VERSION.dmg"
+STAGE="dist/dmg"
+mkdir -p "$STAGE"
+ditto "$APP" "$STAGE/Hit My Limit.app"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "Hit My Limit" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+rm -rf "$STAGE"
 
-if [ -n "${SIGN_IDENTITY:-}" ] && [ -n "${APPLE_ID:-}" ]; then
-  xcrun notarytool submit "$ZIP" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
-  xcrun stapler staple "$APP"
-  rm "$ZIP"
-  ditto -c -k --keepParent "$APP" "$ZIP"
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+  if [ -n "${APPLE_ID:-}" ]; then
+    xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+    xcrun stapler staple "$DMG"
+  fi
 fi
-echo "$ZIP"
+echo "$DMG"

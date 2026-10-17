@@ -42,7 +42,7 @@ how your latest limit hits compare with your earlier ones, and the change log. I
 its limits or gives out a free reset, and lets you share new limit hits with one click. You pick which providers it
 tracks. It runs the command-line tool (`hitmylimit status --json`) with a copy of Node.js inside the app, so it reads the same local logs
 and never reads logins, keys or browser cookies. It is built on GitHub Actions; pushing a `mac-v*` tag publishes a
-zip to GitHub Releases. See [`mac/README.md`](mac/README.md).
+disk image to GitHub Releases. See [`mac/README.md`](mac/README.md).
 
 ## Develop
 

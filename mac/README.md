@@ -24,7 +24,7 @@ login or credential files, never reads browser cookies, and never contacts Anthr
 
 ## Install
 
-Download the zip from the latest `mac-v*` release, unzip, and move "Hit My Limit" to Applications.
+Download the .dmg from the latest `mac-v*` release, open it, and drag "Hit My Limit" to Applications.
 Needs macOS 13 or later. Node.js is included in the app, so there is nothing else to install.
 
 Until the app is signed with a Developer ID, macOS blocks the first launch. Open it once, then go to
@@ -33,7 +33,7 @@ System Settings → Privacy & Security and click Open Anyway.
 ## Build
 
 ```sh
-mac/build.sh   # on a Mac with Xcode 15 or later; writes mac/dist/HitMyLimit-<version>.zip
+mac/build.sh   # on a Mac with Xcode 15 or later; writes mac/dist/HitMyLimit-<version>.dmg
 ```
 
 The Mac app workflow builds it on every pull request that touches `mac/` or `cli/`, and publishes a release
