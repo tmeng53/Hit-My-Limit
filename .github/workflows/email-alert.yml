@@ -11,6 +11,9 @@ on:
         description: Send it
         type: boolean
         default: false
+      test_to:
+        description: Send only to this address, in English and Chinese, as a test
+        required: false
 
 permissions:
   contents: read
@@ -25,9 +28,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node scripts/send-alert.mjs "$ENTRY" ${{ inputs.send && '--send' || '' }}
+      - run: node scripts/send-alert.mjs "$ENTRY" ${{ inputs.send && '--send' || '' }} ${TEST_TO:+--to "$TEST_TO"}
         env:
           ENTRY: ${{ inputs.entry }}
+          TEST_TO: ${{ inputs.test_to }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}

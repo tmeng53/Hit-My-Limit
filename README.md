@@ -61,6 +61,7 @@ Alerts are sent by hand, one change log entry at a time, through [Resend](https:
 
 - Run the **Email alert** workflow from the Actions tab with the entry's file path. Unticked, it is a dry run that
   prints the subscriber count and the email. Ticked, it sends, and records the entry so it is never sent twice.
+  Fill in "test_to" to send only to that address, in both languages, without recording the entry.
 - It needs the `DATABASE_URL` and `RESEND_API_KEY` repository secrets and a `MAIL_FROM` repository variable,
   e.g. `hitmylimit <alerts@hitmylimit.com>`, on a domain verified in Resend.
 - Locally: `node scripts/send-alert.mjs src/content/changes/<entry>.md [--send]` with the same environment variables.
