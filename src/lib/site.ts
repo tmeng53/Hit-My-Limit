@@ -5,8 +5,6 @@ export type Lang = 'en' | 'zh';
 
 export const REPO_URL = 'https://github.com/tmeng53/hit-my-limit';
 export const SUBMIT_URL = `${REPO_URL}/issues/new?template=change.yml`;
-// Buttondown newsletter username for email alerts.
-export const BUTTONDOWN_USER = 'hitmylimit';
 
 export const LABS = {
   anthropic: { en: 'Anthropic', zh: 'Anthropic' },
@@ -51,6 +49,9 @@ export const t = {
     daysAgo: 'days ago',
     today: 'today',
     alertsLead: 'Email me when a limit changes or gets reset',
+    signupOk: "Done. You'll get an email next time a limit changes.",
+    signupInvalid: "That email doesn't look right.",
+    signupError: 'Something went wrong. Try again in a bit.',
     codeLicense: 'Code: MIT',
     navLog: 'changes',
     navLimits: 'limits',
@@ -93,6 +94,9 @@ export const t = {
     daysAgo: '天前',
     today: '今天',
     alertsLead: '额度变化或被重置时发邮件提醒我',
+    signupOk: '好了，下次额度有变化会发邮件给你。',
+    signupInvalid: '邮箱格式好像不对。',
+    signupError: '出了点问题，稍后再试。',
     codeLicense: '代码：MIT',
     navLog: '变化',
     navLimits: '额度数据',

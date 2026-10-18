@@ -53,6 +53,12 @@ create table if not exists submit_counts (
   day date not null,
   n integer not null
 );
+-- Email alert sign-ups, kept as our own copy of the Resend list. Private: no page or API returns these rows.
+create table if not exists subscribers (
+  email text primary key,
+  lang text not null,
+  created_at timestamptz not null default now()
+);
 `;
 
 let pool: pg.Pool | null = null;
@@ -81,10 +87,11 @@ export function sha(text: string, len = 16) {
 
 // Returns false once an address has sent PER_IP_PER_DAY reports today. The address is hashed with a secret
 // (the database URL) and the day, so stored keys can't be turned back into addresses.
-export async function allowSubmit(ip: string): Promise<boolean> {
+// `kind` keeps separate counts for other forms, such as email sign-ups.
+export async function allowSubmit(ip: string, kind = '', limit = PER_IP_PER_DAY): Promise<boolean> {
   const p = await db();
   const today = new Date().toISOString().slice(0, 10);
-  const key = sha(`${URL}|${today}|${ip}`, 32);
+  const key = sha(`${URL}|${today}|${kind}${ip}`, 32);
   await p.query('delete from submit_counts where day < current_date');
   const { rows } = await p.query(
     `insert into submit_counts (key, day, n) values ($1, current_date, 1)
@@ -92,7 +99,16 @@ export async function allowSubmit(ip: string): Promise<boolean> {
      returning n`,
     [key],
   );
-  return rows[0].n <= PER_IP_PER_DAY;
+  return rows[0].n <= limit;
+}
+
+// Saves an alert sign-up, or updates its language if the address is already there.
+export async function subscribe(email: string, lang: string): Promise<void> {
+  const p = await db();
+  await p.query(
+    'insert into subscribers (email, lang) values ($1, $2) on conflict (email) do update set lang = excluded.lang',
+    [email, lang],
+  );
 }
 
 // Inserts the report. Returns false if the same contributor already sent the same report.

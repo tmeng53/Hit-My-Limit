@@ -27,7 +27,7 @@ Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The
 ## Feeds and alerts
 
 - `/rss.xml` (English), `/zh/rss.xml` (Chinese), `/rss/anthropic.xml`, `/rss/openai.xml`, `/rss/google.xml`
-- Email alerts through Buttondown (username set in `src/lib/site.ts`)
+- Email alerts: sign up on `/changes`. See [Email alerts](#email-alerts).
 - Each feed item has one `<category>`: `limit`, `display` or `reset`. `reset` means a lab reset limits early for free;
   the Mac app shows those as their own notification.
 
@@ -49,6 +49,17 @@ hash and deleted the next day. The contributor id is random and hashed before it
   the limit: `bin_minutes` (15 for 5h, 60 daily, 360 weekly, 1440 monthly) and `bins`, counts from 0 to the window length.
 - Storage is Postgres (`DATABASE_URL` or `POSTGRES_URL`). Tables are created on first use; see `src/lib/db.ts`.
 - To remove a bad report: `update reports set hidden = true where id = ...`.
+
+## Email alerts
+
+The form on `/changes` posts to `POST /api/subscribe`. The address and page language are saved in the
+`subscribers` table and added to a [Resend](https://resend.com) contact list, one segment per language
+(`src/lib/resend.ts`). Addresses are private: no page, feed or API returns them, and they are used only for these
+alerts. Sign-ups are limited to 5 a day per IP address, stored the same way as for reports.
+
+Alerts are sent by a maintainer as Resend broadcasts from `mail.hitmylimit.com`, and Resend handles unsubscribe
+links. The site needs `RESEND_API_KEY` (full access, since it adds contacts); without it, sign-ups are only saved
+to the database.
 
 ## Develop
 
