@@ -49,10 +49,12 @@ const monthName = new Date(Date.UTC(2000, month - 1, 1)).toLocaleString('en-US',
 
 const text = {
   en: {
-    kicker: { tighter: 'Time to touch grass.', looser: 'Less grass this month.', same: 'No grass today.' }[leadDir],
+    kicker: lead
+      ? { tighter: 'Usage limits are getting tighter.', looser: 'Usage limits are getting looser.', same: 'Usage limits look about the same.' }[leadDir]
+      : 'Are AI usage limits getting tighter?',
     meta: `${n(data.reports)} report${data.reports === 1 ? '' : 's'} from ${n(data.people)} ${data.people === 1 ? 'person' : 'people'} · last ${data.days} days`,
     sample: 'sample data',
-    empty: 'Claude, ChatGPT, Gemini: are the limits getting worse? Log it when you run out. Enough logs and we’ll know.',
+    empty: 'When you hit your Claude, ChatGPT or Gemini limit, log how long it lasted. Once enough people do, this page shows whether limits are getting tighter.',
     example: 'example',
     diffHead: '5-hour limit · median time to lockout',
     span: `${monthName.slice(0, 3).toLowerCase()} → now`,
@@ -61,18 +63,20 @@ const text = {
     chartTitle: 'Time until locked out, by week',
     changesTitle: 'Recent changes',
     allChanges: 'all changes →',
-    sendTitle: 'Locked out right now? Send it in.',
-    sendJoke: 'Takes a minute. Not like you’re doing anything else.',
+    sendTitle: 'Hit your limit? Share how long it lasted.',
+    sendSub: 'Takes about a minute.',
     sendHint: 'Reads your Claude Code and Codex logs. Asks before sending.',
     form: 'or use the form →',
     copy: 'copy',
     copied: 'copied',
   },
   zh: {
-    kicker: { tighter: '又该摸鱼了。', looser: '摸鱼时间变少了。', same: '今天不用摸鱼。' }[leadDir],
+    kicker: lead
+      ? { tighter: '额度越来越紧了。', looser: '额度变松了。', same: '额度没什么变化。' }[leadDir]
+      : 'AI 额度是不是越来越不够用了？',
     meta: `最近 ${data.days} 天 · ${n(data.people)} 人报了 ${n(data.reports)} 条`,
     sample: '示例数据',
-    empty: 'Claude、ChatGPT、Gemini 的额度是不是越来越不够用了？被限额了就来这儿说一声，看看是不是大家都一样。',
+    empty: '额度用完了就来记一下用了多久。报的人多了，就能看出 Claude、ChatGPT、Gemini 的额度是不是在变少。',
     example: '示例',
     diffHead: '5 小时额度 · 一般多久用完',
     span: `${month} 月 → 现在`,
@@ -81,8 +85,8 @@ const text = {
     chartTitle: '每周用多久就没了',
     changesTitle: '最近的变化',
     allChanges: '全部变化 →',
-    sendTitle: '正在摸鱼？顺手报一下。',
-    sendJoke: '只要一分钟，反正离重置还早。',
+    sendTitle: '额度用完了？报一下用了多久。',
+    sendSub: '一分钟就好。',
     sendHint: '读 Claude Code 和 Codex 的日志，发之前会问你。',
     form: '或者填表 →',
     copy: '复制',
@@ -190,11 +194,6 @@ const recent = changes.slice(0, 3);
           <title>{`${isoDate(c.data.date)} ${labName(c.data.lab)}: ${titleFor(c, lang)}`}</title>
         </g>
       ))}
-      {zh ? (
-        <path class="fish" d={[g.W - g.R - 58, g.W - g.R - 30].map((x) => `M${x},${g.base - 7} q7,-6 14,0 q-7,6 -14,0 Z M${x + 1},${g.base - 7} l-6,-4.5 v9 Z`).join(' ')} />
-      ) : (
-        <path class="tufts" d={[g.W - g.R - 60, g.W - g.R - 42, g.W - g.R - 22].map((x) => `M${x},${g.base} q-1,-6 -4,-9 M${x + 4},${g.base} q0,-8 3,-11 M${x + 8},${g.base} q1,-5 4,-7`).join(' ')} />
-      )}
       {plotted.map((p) => {
         const i = p.minutes.findLastIndex((m) => m !== null);
         return (
@@ -236,7 +235,7 @@ const recent = changes.slice(0, 3);
 
 <section class="send">
   <h2>{text.sendTitle}</h2>
-  <p class="joke">{text.sendJoke}</p>
+  <p class="sub">{text.sendSub}</p>
   <Term copy={text.copy} copied={text.copied} />
   <p class="meta">{text.sendHint} · <a class="u" href={`${prefix}/share`}>{text.form}</a></p>
 </section>
@@ -295,8 +294,6 @@ const recent = changes.slice(0, 3);
   .event text { font: 600 13px var(--font); fill: var(--muted); }
   .event text.tighter { fill: var(--minus); }
   .event text.looser { fill: var(--plus); }
-  .tufts { fill: none; stroke: var(--plus); stroke-width: 1.4; stroke-linecap: round; }
-  .fish { fill: var(--plus); }
   .hit { fill: transparent; }
   .hit:hover { fill: var(--fg); fill-opacity: 0.04; }
 
@@ -306,7 +303,7 @@ const recent = changes.slice(0, 3);
   .changes .s { font-weight: 600; }
 
   .send h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
-  .send .joke { margin: 0 0 16px; color: var(--muted); }
+  .send .sub { margin: 0 0 16px; color: var(--muted); }
   .send .meta { margin-top: 10px; }
 
   @media (max-width: 640px) {
