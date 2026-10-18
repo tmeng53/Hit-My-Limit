@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import pg from 'pg';
 import type { HomeData, PlanTrend } from './home';
+import { apiValue } from './pricing';
 import { BIN_MINUTES, MIN_GROUP, RECENT_DAYS, WINDOWS, type Report } from './reports';
 
 // Vercel's Neon and Supabase integrations set one of these.
@@ -45,6 +46,8 @@ alter table reports add column if not exists tokens_reasoning bigint;
 alter table reports add column if not exists requests integer;
 alter table reports add column if not exists start_hour smallint;
 alter table reports add column if not exists weekly_used smallint;
+-- What the tokens would cost at API prices, in US dollars (see pricing.ts). Null without token counts.
+alter table reports add column if not exists api_usd double precision;
 alter table reports alter column work drop not null;
 create index if not exists reports_group on reports (lab, plan, limit_window, hit_on);
 -- Daily submission counts per hashed IP address, used only for rate limiting. Rows older than today are deleted.
@@ -71,7 +74,8 @@ export function dbConfigured() {
 async function db() {
   if (!pool) {
     pool = new pg.Pool({ connectionString: URL, max: 1 });
-    ready = pool.query(SCHEMA).then(() => undefined);
+    const p = pool;
+    ready = p.query(SCHEMA).then(() => backfill(p));
     ready.catch(() => {
       ready = null;
       pool = null;
@@ -79,6 +83,18 @@ async function db() {
   }
   await ready;
   return pool!;
+}
+
+// Fills in api_usd for reports saved before the column existed.
+async function backfill(p: pg.Pool) {
+  const { rows } = await p.query(
+    `select id, lab, model, models, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write
+     from reports where api_usd is null and tokens_total is not null and lab in ('anthropic', 'openai') limit 5000`,
+  );
+  for (const r of rows) {
+    const usd = apiValue(r);
+    if (usd !== null) await p.query('update reports set api_usd = $1 where id = $2', [usd, r.id]);
+  }
 }
 
 export function sha(text: string, len = 16) {
@@ -117,15 +133,15 @@ export async function saveReport(r: Report): Promise<boolean> {
   const { rowCount } = await p.query(
     `insert into reports (hit_on, lab, product, plan, limit_window, minutes_to_limit, model, work, account,
        tokens_total, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tool_version, source, contributor, felt, models,
-       tokens_reasoning, requests, start_hour, weekly_used)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       tokens_reasoning, requests, start_hour, weekly_used, api_usd)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      on conflict do nothing`,
     [
       r.hit_on, r.lab, r.product, r.plan, r.window, r.minutes_to_limit, r.model, r.work, r.account,
       r.tokens_total, r.tokens_input, r.tokens_output, r.tokens_cache_read, r.tokens_cache_write,
       r.tool_version, r.source, sha(r.client_id), r.felt,
       r.models && JSON.stringify(r.models),
-      r.tokens_reasoning, r.requests, r.start_hour, r.weekly_used,
+      r.tokens_reasoning, r.requests, r.start_hour, r.weekly_used, apiValue(r),
     ],
   );
   return rowCount === 1;
@@ -181,14 +197,16 @@ export interface GroupStats {
   account: string;
   reports: number;
   contributors: number;
-  median_minutes: number | null;
-  // The middle half of reports: 25th and 75th percentile of minutes to the limit.
-  p25_minutes: number | null;
-  p75_minutes: number | null;
-  // Median of the same group 12 weeks earlier, for "vs 12 weeks ago"; null when that group was too small.
-  prev_median_minutes: number | null;
+  // Reports with token counts (from the command-line tool). The usage numbers below need MIN_GROUP of them.
   token_reports: number;
+  // Median API-price value of the tokens used before the limit, in US dollars (see pricing.ts), the middle half
+  // of reports (25th to 75th percentile), and the median of the same group 12 weeks earlier.
+  median_usd: number | null;
+  p25_usd: number | null;
+  p75_usd: number | null;
+  prev_median_usd: number | null;
   median_tokens: number | null;
+  median_minutes: number | null;
   // Of the reports that answered, the share that said the limit came sooner than usual, 0–100.
   felt_reports: number;
   felt_sooner: number | null;
@@ -208,38 +226,41 @@ export async function groupStats(): Promise<GroupStats[]> {
        select lab, plan, limit_window, acct as account,
               count(*)::int as reports,
               count(distinct contributor)::int as contributors,
+              count(api_usd)::int as token_reports,
+              percentile_cont(0.5) within group (order by api_usd) as median_usd,
+              percentile_cont(0.25) within group (order by api_usd) as p25_usd,
+              percentile_cont(0.75) within group (order by api_usd) as p75_usd,
+              percentile_cont(0.5) within group (order by tokens_total) filter (where api_usd is not null) as median_tokens,
               percentile_cont(0.5) within group (order by minutes_to_limit) as median_minutes,
-              percentile_cont(0.25) within group (order by minutes_to_limit) as p25_minutes,
-              percentile_cont(0.75) within group (order by minutes_to_limit) as p75_minutes,
-              count(tokens_total)::int as token_reports,
-              percentile_cont(0.5) within group (order by tokens_total) as median_tokens,
               count(felt)::int as felt_reports,
               count(*) filter (where felt = 'sooner')::int as sooner
        from g where hit_on > current_date - $1::int
        group by 1, 2, 3, 4
      ),
      prev as (
-       select lab, plan, limit_window, acct as account, count(*)::int as prev_reports,
-              percentile_cont(0.5) within group (order by minutes_to_limit) as prev_median_minutes
+       select lab, plan, limit_window, acct as account, count(api_usd)::int as prev_reports,
+              percentile_cont(0.5) within group (order by api_usd) as prev_median_usd
        from g where hit_on <= current_date - $2::int and hit_on > current_date - $2::int - $1::int
        group by 1, 2, 3, 4
      )
-     select cur.*, prev.prev_reports, prev.prev_median_minutes
+     select cur.*, prev.prev_reports, prev.prev_median_usd
      from cur left join prev using (lab, plan, limit_window, account)
      order by 1, 2, 3, 4`,
     [RECENT_DAYS, PREV_OFFSET_DAYS],
   );
-  const shown = (ok: boolean, v: number | null) => (ok && v !== null ? Math.round(v) : null);
+  const usd = (ok: boolean, v: number | null) => (ok && v !== null ? Math.round(v * 100) / 100 : null);
+  const whole = (ok: boolean, v: number | null) => (ok && v !== null ? Math.round(v) : null);
   return rows.map(({ prev_reports, sooner, limit_window, ...g }) => {
-    const big = g.reports >= MIN_GROUP;
+    const big = g.token_reports >= MIN_GROUP;
     return {
       ...g,
       window: limit_window,
-      median_minutes: shown(big, g.median_minutes),
-      p25_minutes: shown(big, g.p25_minutes),
-      p75_minutes: shown(big, g.p75_minutes),
-      prev_median_minutes: shown(big && prev_reports >= MIN_GROUP, g.prev_median_minutes),
-      median_tokens: shown(g.token_reports >= MIN_GROUP, g.median_tokens),
+      median_usd: usd(big, g.median_usd),
+      p25_usd: usd(big, g.p25_usd),
+      p75_usd: usd(big, g.p75_usd),
+      prev_median_usd: usd(big && prev_reports >= MIN_GROUP, g.prev_median_usd),
+      median_tokens: whole(big, g.median_tokens),
+      median_minutes: whole(g.reports >= MIN_GROUP, g.median_minutes),
       felt_sooner: g.felt_reports >= MIN_GROUP ? Math.round((100 * sooner) / g.felt_reports) : null,
     };
   });
@@ -249,22 +270,22 @@ export async function groupStats(): Promise<GroupStats[]> {
 export const WEEK_MIN = 10;
 export const HOME_WEEKS = 12;
 
-// Home page data: weekly medians to the 5-hour limit per plan (own accounts) over the last HOME_WEEKS weeks,
-// plus overall counts for the last RECENT_DAYS days.
+// Home page data: weekly medians of the API-price value used before the 5-hour limit, per plan (own accounts),
+// over the last HOME_WEEKS weeks, plus overall counts for the last RECENT_DAYS days.
 export async function homeData(): Promise<HomeData> {
   const p = await db();
   const start = `(date_trunc('week', current_date)::date - ${7 * (HOME_WEEKS - 1)})`;
   const [{ rows: weekly }, { rows: counts }, { rows: totals }] = await Promise.all([
     p.query(
       `select lab, plan, ((hit_on - ${start}) / 7)::int as i, count(*)::int as n,
-              percentile_cont(0.5) within group (order by minutes_to_limit) as median
+              percentile_cont(0.5) within group (order by api_usd) as median
        from reports
-       where not hidden and account = 'own' and limit_window = '5h' and hit_on >= ${start}
+       where not hidden and account = 'own' and limit_window = '5h' and hit_on >= ${start} and api_usd is not null
        group by 1, 2, 3`,
     ),
     p.query(
       `select lab, plan, count(*)::int as reports from reports
-       where not hidden and account = 'own' and limit_window = '5h' and hit_on > current_date - $1::int
+       where not hidden and account = 'own' and limit_window = '5h' and hit_on > current_date - $1::int and api_usd is not null
        group by 1, 2`,
       [RECENT_DAYS],
     ),
@@ -279,10 +300,10 @@ export async function homeData(): Promise<HomeData> {
   const plans = new Map<string, PlanTrend>();
   const plan = (lab: string, name: string) => {
     const k = `${lab}/${name}`;
-    if (!plans.has(k)) plans.set(k, { lab, plan: name, reports: 0, minutes: new Array(HOME_WEEKS).fill(null) });
+    if (!plans.has(k)) plans.set(k, { lab, plan: name, reports: 0, usd: new Array(HOME_WEEKS).fill(null) });
     return plans.get(k)!;
   };
   for (const r of counts) plan(r.lab, r.plan).reports = r.reports;
-  for (const r of weekly) if (r.n >= WEEK_MIN && r.i >= 0 && r.i < HOME_WEEKS) plan(r.lab, r.plan).minutes[r.i] = Math.round(r.median);
+  for (const r of weekly) if (r.n >= WEEK_MIN && r.i >= 0 && r.i < HOME_WEEKS) plan(r.lab, r.plan).usd[r.i] = Math.round(r.median * 100) / 100;
   return { days: RECENT_DAYS, reports: totals[0].reports, people: totals[0].people, weeks, plans: [...plans.values()] };
 }

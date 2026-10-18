@@ -1,6 +1,6 @@
 # Hit My Limit
 
-[hitmylimit.com](https://hitmylimit.com) shows how long people last before they hit AI usage limits, from
+[hitmylimit.com](https://hitmylimit.com) shows how much usage AI plans give before you hit the limit, from
 anonymous reports, and keeps a dated, sourced log of every change the labs make to those limits.
 
 It covers Claude and Claude Code, ChatGPT and Codex, and Gemini and Gemini CLI. English at `/`, Chinese at `/zh/`.
@@ -18,8 +18,17 @@ logs don't show (claude.ai, ChatGPT, Gemini), run `npx hitmylimit --source manua
 To report automatically whenever Claude Code runs out, run `npx hitmylimit hook on`. It asks first, and
 `npx hitmylimit hook off` removes it. Details are in [`cli/README.md`](cli/README.md).
 
-Once a plan has 20 reports, [/limits](https://hitmylimit.com/limits) shows the median time to the limit and you
-see how your report compares.
+Once a plan has 20 reports with token counts, [/limits](https://hitmylimit.com/limits) shows the median usage
+before the limit, week over week, and you see how your report compares.
+
+## How usage is measured
+
+Labs don't publish how big their plans are, so the site measures it from the tokens in Claude Code and Codex logs.
+Raw token counts would mislead: most tokens are cache reads, which cost about a tenth of normal input, and an Opus
+token costs more than a Sonnet one. So each report's tokens are priced at the model's public API rates and added
+up, giving one dollar figure per hit. The prices are a fixed yardstick in [`src/lib/pricing.ts`](src/lib/pricing.ts),
+not what anyone paid, so when the median drops for a plan, the plan is giving less. Time to the limit is still
+shown next to it. Reports without token counts (the form, the chat apps) count toward time only.
 
 ## What gets sent
 
