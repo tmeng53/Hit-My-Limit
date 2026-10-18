@@ -9,11 +9,13 @@ const json = (status: number, body: unknown) =>
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!dbConfigured()) return json(503, { error: 'Reports are not open yet' });
-  if (Number(request.headers.get('content-length') ?? 0) > 4096) return json(413, { error: 'Report too large' });
+  // Read the body as text so a request without a content-length header can't skip the size check.
+  const text = await request.text().catch(() => '');
+  if (text.length > 4096) return json(413, { error: 'Report too large' });
 
   let report;
   try {
-    report = parseReport(await request.json());
+    report = parseReport(JSON.parse(text));
   } catch (e) {
     return json(400, { error: e instanceof Error ? e.message : 'Invalid report' });
   }

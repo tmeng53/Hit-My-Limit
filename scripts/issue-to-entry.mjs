@@ -90,7 +90,10 @@ const labOwned = LAB_OWNED[lab].some((d) => {
   return (xHost === domain || xHost.endsWith('.' + domain)) && (!segment || firstSegment === segment);
 });
 // X doesn't serve posts to bots, so the link check only counts for other sites.
-const fast = kind === 'reset' && labOwned && (reachable || xHost === 'x.com');
+// Only people with write access skip review: anyone can open an issue, and a link to a lab's X account
+// can't be checked, so anything else would let a stranger publish text on the site.
+const trusted = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(process.env.AUTHOR_ASSOCIATION ?? '');
+const fast = kind === 'reset' && labOwned && (reachable || xHost === 'x.com') && trusted;
 const title = f['What changed, in one line'];
 const plans = (f['Plans affected'] ?? '').split(',').map((p) => p.trim()).filter(Boolean);
 const file = `src/content/changes/${date}-${lab}-${slugify(title)}.md`;
@@ -121,4 +124,5 @@ output('notes', [
   reachable ? '- Source link loads.' : '- Source link did not load. Check it before approving.',
   official ? '- Source is an official or press site.' : '- Source is not on the official or press list, so the entry is marked unconfirmed.',
   ...(fast ? ["- Free reset sourced from the lab's own channel, so it was merged without review. Revert this PR if it's wrong."] : []),
+  ...(kind === 'reset' && labOwned && !trusted ? ["- Free reset from the lab's own channel. It needs a quick review because the issue came from outside the repo."] : []),
 ].join('\n'));
