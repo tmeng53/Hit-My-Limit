@@ -7,7 +7,7 @@ npx hitmylimit
 ```
 
 It reads your Claude Code and Codex logs and shows any limit you ran out of that you haven't sent yet. Press Enter
-to send it to [hitmylimit.com](https://hitmylimit.com/limits). It asks your plan the first time and remembers it.
+to send it to [hitmylimit.com](https://hitmylimit.com/limits). The first time, it asks your Claude plan (or skip, if you don't use Claude) and remembers it.
 
 If there's nothing new in the logs, it asks whether you ran out somewhere else:
 

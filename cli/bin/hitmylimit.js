@@ -141,6 +141,13 @@ async function main() {
       a.shown = true;
     }
 
+    // The Claude plan comes first, once. People who don't use Claude skip it and aren't asked again.
+    if (interactive && !state.plans.anthropic && !state.no_claude && o.plan === undefined) {
+      const plan = await menu('\nYour Claude plan:', [...PLANS.anthropic, ['skip', "Skip, I don't use Claude"]], 1);
+      if (plan === 'skip') state.no_claude = true;
+      else state.plans.anthropic = plan;
+    }
+
     const source = choose([['login'], ['logs'], ['manual']], o.source, null);
     if (source === 'manual' && !interactive) throw new Error('--source manual needs a terminal to answer the questions');
     if (source === 'login') state.login_ok = true;

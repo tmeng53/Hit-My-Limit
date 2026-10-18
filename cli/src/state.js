@@ -21,6 +21,7 @@ export async function loadState(path) {
     source: ['login', 'logs', 'manual'].includes(s.source) ? s.source : undefined,
     login_ok: s.login_ok === true,
     hook: s.hook === true,
+    no_claude: s.no_claude === true,
     hook_offered: s.hook_offered === true,
     last_auto: s.last_auto && typeof s.last_auto === 'object' ? s.last_auto : null,
   };
