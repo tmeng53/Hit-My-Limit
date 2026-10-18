@@ -23,6 +23,7 @@ jobs:
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          AUTHOR_ASSOCIATION: ${{ github.event.issue.author_association }}
       # Pull requests opened by the bot don't trigger the Build workflow, and free resets merge
       # straight away, so check the site still builds before opening one.
       - id: build
