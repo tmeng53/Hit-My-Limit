@@ -102,12 +102,13 @@ export async function readCodex(dirs, since) {
     }
   }
   // A session that starts already out of quota logs the error before any snapshot. The account's limits are
-  // shared across sessions, so use the latest snapshot from any session in the 5 hours before.
+  // shared across sessions, so use the latest earlier snapshot, from any session, with a window still full then.
   snaps.sort((a, b) => a.time - b.time);
+  const full = (s, time) => s.snap.filter((w) => w.used >= 90 && (!w.resetsAt || w.resetsAt > time)).sort((a, b) => b.used - a.used)[0];
   for (const o of orphans) {
-    const s = snaps.filter((x) => x.time <= o.time && o.time - x.time < 5 * 3600_000).pop();
-    const w = s && [...s.snap].sort((a, b) => b.used - a.used)[0];
-    if (w && w.used >= 90 && (!w.resetsAt || w.resetsAt > o.time)) hits.push({ time: o.time, ...w, plan: s.plan, version: o.version, snap: s.snap });
+    const s = snaps.filter((x) => x.time <= o.time && (x.snap.some((w) => w.resetsAt) || o.time - x.time < 5 * 3600_000)).pop();
+    const w = s && full(s, o.time);
+    if (w) hits.push({ time: o.time, ...w, plan: s.plan, version: o.version, snap: s.snap });
     else unread.push(o);
   }
   usage.sort((a, b) => a.time - b.time);

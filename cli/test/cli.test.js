@@ -174,6 +174,26 @@ test('Codex: a new session that starts out of quota uses the snapshot from an ea
   assert.equal(hits[0].plan, 'plus');
 });
 
+test('Codex: a session the next day, still out of weekly quota, uses the last snapshot', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const weekly = Date.parse('2026-10-08T00:00:00Z') / 1000;
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:40:00Z'), type: 'event_msg', payload: { type: 'token_count',
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 0, output_tokens: 50 } },
+      rate_limits: { plan_type: 'plus', primary: { used_percent: 40, window_minutes: 300, resets_at: Date.parse('2026-10-04T05:00:00Z') / 1000 },
+        secondary: { used_percent: 100, window_minutes: 10080, resets_at: weekly } } } },
+  ]));
+  writeFileSync(join(dir, 'rollout-b.jsonl'), lines([
+    { timestamp: T('2026-10-05T10:00:00Z'), type: 'event_msg', payload: { type: 'error', message: "You've hit your usage limit. Try again later." } },
+  ]));
+  const data = await readCodex([dir], since);
+  const hits = codexHits(data);
+  assert.equal(data.unread.length, 0);
+  // The same weekly hit, counted once.
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].window, 'weekly');
+});
+
 test('Claude Code: reads "session limit" notices and the 12:20am reset format', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
   writeFileSync(join(dir, 'a.jsonl'), lines([
