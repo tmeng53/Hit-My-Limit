@@ -26,9 +26,18 @@ npx hitmylimit hook on
 ```
 
 This adds a hook to Claude Code (`StopFailure` with the `rate_limit` matcher, in `~/.claude/settings.json`). Each time
-Claude Code stops on a usage limit, the hook sends that report right away, without asking, and shows a desktop
-notification. The next time you run `npx hitmylimit` you see the full report and how it compares. It asks before
-turning on, and `npx hitmylimit hook off` removes it. Other settings and hooks are left as they are.
+Claude Code stops on a usage limit, you get a desktop notification like:
+
+```
+Claude Pro: 5-hour limit out after 3h 15m
+Sooner than 62% of Pro reports
+Opus 78% · Sonnet 22%
+```
+
+Until your plan has 20 reports, the second line compares with your own week instead ("2nd time this week, 40m
+sooner than Tue"). The hook sends that report right away, without asking, and the next time you run
+`npx hitmylimit` you see it in full. It asks before turning on, and `npx hitmylimit hook off` removes it. Other
+settings and hooks are left as they are.
 
 The hook runs a copy of this tool kept in `~/.config/hitmylimit/cli`, so it works without npx. Codex has no such hook,
 but it writes how full your limits are into its own logs, so a normal run already finds Codex hits.

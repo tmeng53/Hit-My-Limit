@@ -25,6 +25,6 @@ test('removeHook takes out only ours and tidies empty sections', () => {
 });
 
 test('notify returns an OSC 9 sequence off macOS, without control characters in the text', async () => {
-  const seq = await notify('hitmylimit', 'line\none', 'linux');
-  assert.equal(seq, '\x1b]9;hitmylimit: line one\x07');
+  const seq = await notify({ title: 'Claude Pro: out after 3h', subtitle: 'First time this week', body: 'line\none' }, 'linux');
+  assert.equal(seq, '\x1b]9;Claude Pro: out after 3h. First time this week. line one\x07');
 });

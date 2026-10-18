@@ -71,12 +71,14 @@ export async function installCopy(dir) {
 
 // On a Mac the notification goes through macOS itself, which works in any terminal. Elsewhere it is an OSC 9
 // sequence, which Claude Code writes to the terminal for the hook.
-export async function notify(title, body, platform = process.platform) {
+export async function notify({ title, subtitle = '', body = '' }, platform = process.platform) {
   if (platform === 'darwin') {
+    const script = `display notification ${JSON.stringify(body)} with title ${JSON.stringify(title)}${subtitle ? ` subtitle ${JSON.stringify(subtitle)}` : ''}`;
     await new Promise((resolve) => {
-      execFile('osascript', ['-e', `display notification ${JSON.stringify(body)} with title ${JSON.stringify(title)}`], { timeout: 5000 }, () => resolve());
+      execFile('osascript', ['-e', script], { timeout: 5000 }, () => resolve());
     });
     return null;
   }
-  return `\x1b]9;${`${title}: ${body}`.replace(/[\x00-\x1f\x7f]/g, ' ')}\x07`;
+  const text = [title, subtitle, body].filter(Boolean).join('. ');
+  return `\x1b]9;${text.replace(/[\x00-\x1f\x7f]/g, ' ')}\x07`;
 }

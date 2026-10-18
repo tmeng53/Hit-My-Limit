@@ -13,6 +13,7 @@ import { colors, hitLines, unreadNote } from '../src/display.js';
 import { DAY, duration } from '../src/time.js';
 import { APPS, askText, manualHit, parsePast, parseWhen, windowsFor } from '../src/manual.js';
 import { claudeLogin, claudeUsage, codexLogin, codexUsage, usageHits } from '../src/usage.js';
+import { hookSummary } from '../src/summary.js';
 import { addHook, claudeSettingsPath, hasHook, installCopy, notify, readSettings, removeHook, writeSettings } from '../src/hook.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -61,13 +62,18 @@ const LOGIN_NOTE = [
   'only to ask Anthropic and OpenAI how full your limits are. The login is never',
   'sent to hitmylimit, printed or saved. On a Mac, the Keychain may ask first.',
 ].join('\n');
-const HOOK_NOTE = [
-  '',
-  'This adds a hook to Claude Code. Each time Claude Code stops on a usage limit,',
-  'it sends that report to hitmylimit.com right away, without asking, and shows a',
-  'desktop notification. You see the full report the next time you run',
-  'npx hitmylimit. Turn it off any time with: npx hitmylimit hook off',
-].join('\n');
+// The offer to turn the hook on leads with what you get back each time.
+const hookOffer = (plan) => {
+  const name = plan ? planName('anthropic', plan) : 'Pro';
+  return [
+    '',
+    'Want a heads-up next time Claude Code runs out?',
+    `  You'll get a notification like "Claude ${name}: 5-hour limit out after 3h 15m,`,
+    `  sooner than 62% of ${name} reports". It also sends that report to hitmylimit:`,
+    '  plan, models, token counts and time to limit. Never your prompts or code.',
+    '  Turn it off any time: npx hitmylimit hook off',
+  ].join('\n');
+};
 
 async function main() {
   const { values: o, positionals } = parseArgs({
@@ -130,7 +136,8 @@ async function main() {
       const a = state.last_auto;
       console.log(`\nSent automatically when Claude Code ran out:\n`);
       console.log(hitLines(a.hit, 0, { sent: true, c: color }).join('\n'));
-      if (a.comparison) console.log(`\n${comparisonLine(a.comparison)}`);
+      if (a.summary) console.log(`\n${a.summary.line}.${a.summary.models ? ` ${a.summary.models}.` : ''}`);
+      else if (a.comparison) console.log(`\n${comparisonLine(a.comparison)}`);
       a.shown = true;
     }
 
@@ -319,8 +326,8 @@ async function main() {
     if (!interactive || !usesClaudeCode || state.hook || state.hook_offered) return;
     state.hook_offered = true;
     await save();
-    console.log(color.dim(HOOK_NOTE));
-    if ((await menu('Report automatically next time Claude Code runs out?', [['no', 'No thanks'], ['yes', 'Yes, turn it on']], 0)) === 'yes') {
+    console.log(hookOffer(state.plans.anthropic));
+    if ((await menu('Turn it on?', [['no', 'Not now'], ['yes', 'Yes, notify me']], 0)) === 'yes') {
       await turnHookOn();
     }
   }
@@ -328,8 +335,8 @@ async function main() {
   async function hookOn() {
     if (!o.yes) {
       if (!interactive) throw new Error('Run this in a terminal, or pass --yes to turn it on without asking');
-      console.log(color.dim(HOOK_NOTE));
-      if ((await menu('Turn it on?', [['yes', 'Yes, turn it on'], ['no', 'No']], 0)) === 'no') return console.log('Nothing was changed.');
+      console.log(hookOffer(state.plans.anthropic));
+      if ((await menu('Turn it on?', [['yes', 'Yes, notify me'], ['no', 'Not now']], 0)) === 'no') return console.log('Nothing was changed.');
     }
     await turnHookOn();
   }
@@ -344,7 +351,7 @@ async function main() {
     state.hook = true;
     state.hook_offered = true;
     await save();
-    console.log(`\nOn. Added to ${path}`);
+    console.log(`\nOn. Next time Claude Code runs out, you'll get a notification. (Added to ${path})`);
     console.log(`Reports go out as Claude ${planName('anthropic', state.plans.anthropic)}. Change it with: npx hitmylimit hook on --plan <plan>`);
     console.log('Turn it off with: npx hitmylimit hook off');
   }
@@ -372,10 +379,11 @@ async function runHook(o) {
 
     // Claude Code may write its limit notice just after the turn stops, so look again a few times.
     let hit = null;
+    let hits = [];
     for (let i = 0; i < 4 && !hit; i++) {
       if (i) await new Promise((r) => setTimeout(r, 1500));
-      const data = await readClaude(claudeDirs(), Date.now() - 8 * DAY);
-      hit = claudeHits(data).filter((h) => h.hit >= Date.now() - 15 * 60_000).pop() ?? null;
+      hits = claudeHits(await readClaude(claudeDirs(), Date.now() - 8 * DAY));
+      hit = hits.filter((h) => h.hit >= Date.now() - 15 * 60_000).pop() ?? null;
     }
     if (!hit && state.login_ok) {
       const login = await claudeLogin().catch(() => null);
@@ -384,24 +392,22 @@ async function runHook(o) {
     // A short API rate limit, not a plan's usage limit.
     if (!hit || state.sent.includes(hitKey(hit))) return;
 
-    const name = `Claude ${WINDOW_NAMES[hit.window]} limit`;
     const plan = state.plans.anthropic;
     let seq;
     if (!plan) {
-      seq = await notify('hitmylimit', `${name} ran out. Run npx hitmylimit to send it.`);
+      seq = await notify({ title: `Claude ${WINDOW_NAMES[hit.window]} limit ran out`, body: 'Run npx hitmylimit to send it.' });
     } else {
       const report = buildReport(hit, { plan, work: 'coding', account: 'own', clientId: state.client_id });
       try {
         const res = await send(o.api, report);
         state.sent.push(hitKey(hit));
-        state.last_auto = { hit, comparison: res.comparison ?? null, shown: false };
+        const summary = hookSummary(hit, plan, res.comparison ?? null, hits);
+        state.last_auto = { hit, summary, comparison: res.comparison ?? null, shown: false };
         await saveState(statePathname, state);
-        const c = res.comparison;
-        const compare = c && c.percent !== null ? ` Sooner than ${c.percent}% of ${planName('anthropic', plan)} reports.` : '';
-        seq = await notify('hitmylimit', `${name} ran out ${duration((hit.hit - hit.start) / 60_000)} in. Sent.${compare}`);
+        seq = await notify({ title: summary.title, subtitle: summary.line, body: summary.models });
       } catch (e) {
         log(`send failed: ${e.message}`);
-        seq = await notify('hitmylimit', `${name} ran out, but sending failed. Run npx hitmylimit to try again.`);
+        seq = await notify({ title: `Claude ${WINDOW_NAMES[hit.window]} limit ran out`, body: "Couldn't send it. Run npx hitmylimit to try again." });
       }
     }
     if (seq) process.stdout.write(JSON.stringify({ terminalSequence: seq }) + '\n');
