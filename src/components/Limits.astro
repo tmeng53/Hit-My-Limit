@@ -1,49 +1,56 @@
 ---
 import { dbConfigured, groupStats, type GroupStats } from '../lib/db';
+import { priceFor } from '../lib/pricing';
 import { labelFor, MIN_GROUP, RECENT_DAYS } from '../lib/reports';
 import { LABS, type Lang } from '../lib/site';
 
 interface Props {
   lang: Lang;
+  // Made-up groups for design work in development; the page reads the database otherwise.
+  sample?: GroupStats[];
 }
-const { lang } = Astro.props;
+const { lang, sample } = Astro.props;
 
 const text = {
   en: {
-    h1: 'How long until you’re locked out',
-    lead: `Median from reports in the last ${RECENT_DAYS} days. Self-reported, not official.`,
+    h1: 'How much each plan gives before the limit',
+    lead: `Median usage before the limit, from reports in the last ${RECENT_DAYS} days, priced at each model’s API rates. Self-reported, not official.`,
     other: 'Shared and resold accounts',
     otherNote: 'kept separate',
-    cols: ['Plan', 'Limit', 'Median', 'Middle half', 'vs 12 wk ago', 'Reports'],
+    cols: ['Plan', 'Limit', 'Usage', 'Middle half', 'vs 12 wk ago', 'Reports'],
     windows: { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' } as Record<string, string>,
-    needs: (k: number) => `needs ${k} more report${k === 1 ? '' : 's'}`,
+    needs: (k: number) => `needs ${k} more report${k === 1 ? '' : 's'} with tokens`,
     tokens: (t: string) => `${t} tokens`,
+    time: (t: string) => `out in ${t}`,
+    noTokens: 'no token data yet',
     felt: (p: number) => `${p}% said sooner than usual`,
     empty: 'No reports yet.',
     share: 'share a hit →',
     closed: 'Reports are not open yet.',
-    tokensNote: 'Tokens come from the command-line tool, so they cover Claude Code and Codex, not the chat apps.',
+    tokensNote: 'Usage is the tokens in Claude Code and Codex logs, sent by the command-line tool, priced at each model’s public API rates so cache reads and cheaper models count for what they are worth. The chat apps don’t log tokens, so they aren’t counted.',
   },
   zh: {
-    h1: '用多久会被锁',
-    lead: `最近 ${RECENT_DAYS} 天大家报上来的数据，不是官方数字。`,
+    h1: '每个套餐用完前能用多少',
+    lead: `最近 ${RECENT_DAYS} 天大家报上来的数据，按各模型的 API 价格折成美元。不是官方数字。`,
     other: '共用和代理账号',
     otherNote: '单独统计',
-    cols: ['套餐', '额度', '一般多久用完', '大多数人', '比 12 周前', '条数'],
+    cols: ['套餐', '额度', '一般能用', '大多数人', '比 12 周前', '条数'],
     windows: { '5h': '5 小时', daily: '每天', weekly: '每周', monthly: '每月' } as Record<string, string>,
-    needs: (k: number) => `还差 ${k} 条`,
+    needs: (k: number) => `还差 ${k} 条带 token 的`,
     tokens: (t: string) => `${t} token`,
+    time: (t: string) => `${t} 用完`,
+    noTokens: '还没有 token 数据',
     felt: (p: number) => `${p}% 说比平时用完得快`,
     empty: '还没有数据。',
     share: '报一下 →',
     closed: '还没开放提交，快了。',
-    tokensNote: 'token 数只有用命令行报的才有，所以只算 Claude Code 和 Codex。',
+    tokensNote: '用量是命令行工具从 Claude Code 和 Codex 日志里读到的 token，按各模型的 API 官方价格折算，这样缓存和便宜的模型不会被算多。网页和 App 没有 token 记录，所以不算在内。',
   },
 }[lang];
 
-let groups: GroupStats[] = [];
+let groups: GroupStats[] = sample ?? [];
 let failed = false;
-if (dbConfigured()) {
+if (!sample && dbConfigured()) {
   try {
     groups = await groupStats();
   } catch (e) {
@@ -61,6 +68,8 @@ function duration(m: number) {
   if (d) return `${d}d ${h}h`;
   return h ? `${h}h${String(mm).padStart(2, '0')}` : `${mm}m`;
 }
+// 6.1 -> "$6.10", 38 -> "$38", 1240 -> "$1.2k"
+const money = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 10 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
 function tokens(n: number) {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -71,9 +80,9 @@ const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', 
 const planName = (g: GroupStats) => `${BRAND[g.lab] ?? g.lab} ${labelFor(g.lab, 'plans', g.plan)}`;
 const bar = (n: number) => '█'.repeat(Math.max(1, Math.round((10 * Math.min(n, MIN_GROUP)) / MIN_GROUP))).padEnd(10, '░');
 const vs = (g: GroupStats) =>
-  g.median_minutes === null || g.prev_median_minutes === null ? null : Math.round((100 * (g.median_minutes - g.prev_median_minutes)) / g.prev_median_minutes);
+  g.median_usd === null || g.prev_median_usd === null ? null : Math.round((100 * (g.median_usd - g.prev_median_usd)) / g.prev_median_usd);
 // Plans with numbers first, then the ones still collecting reports.
-const order = (rows: GroupStats[]) => [...rows].sort((a, b) => Number(a.median_minutes === null) - Number(b.median_minutes === null));
+const order = (rows: GroupStats[]) => [...rows].sort((a, b) => Number(a.median_usd === null) - Number(b.median_usd === null));
 const sections = [{ rows: order(own), title: null }, { rows: order(other), title: text.other }].filter((s, i) => i === 0 || s.rows.length > 0);
 ---
 <section class="intro">
@@ -81,7 +90,7 @@ const sections = [{ rows: order(own), title: null }, { rows: order(other), title
   <p class="lead">{text.lead}</p>
 </section>
 
-{!dbConfigured() || failed ? (
+{(!sample && !dbConfigured()) || failed ? (
   <p>{text.closed}</p>
 ) : own.length + other.length === 0 ? (
   <p>{text.empty} <a class="u" href={`${prefix}/share`}>{text.share}</a></p>
@@ -93,20 +102,24 @@ const sections = [{ rows: order(own), title: null }, { rows: order(other), title
         {s.title && <tr class="group"><td colspan="6">{s.title} · <span class="faint">{text.otherNote}</span></td></tr>}
         {s.rows.map((g) => {
           const d = vs(g);
-          const extra = [g.median_tokens !== null && text.tokens(tokens(g.median_tokens)), g.felt_sooner !== null && text.felt(g.felt_sooner)].filter(Boolean).join(' · ');
-          return g.median_minutes === null ? (
+          const extra = [
+            g.median_tokens !== null && text.tokens(tokens(g.median_tokens)),
+            g.median_minutes !== null && text.time(duration(g.median_minutes)),
+            g.felt_sooner !== null && text.felt(g.felt_sooner),
+          ].filter(Boolean).join(' · ');
+          return g.median_usd === null ? (
             <tr class="pending">
               <td>{planName(g)}</td>
               <td class="win">{text.windows[g.window] ?? g.window}</td>
-              <td class="r wait" colspan="3"><span class="bar" aria-hidden="true">{bar(g.reports)}</span> {text.needs(MIN_GROUP - g.reports)}</td>
+              <td class="r wait" colspan="3">{priceFor(g.lab, null) ? <><span class="bar" aria-hidden="true">{bar(g.token_reports)}</span> {text.needs(MIN_GROUP - g.token_reports)}</> : text.noTokens}</td>
               <td class="r n">{g.reports}</td>
             </tr>
           ) : (
             <tr>
               <td>{planName(g)}{extra && <span class="extra">{extra}</span>}</td>
               <td class="win">{text.windows[g.window] ?? g.window}</td>
-              <td class="r big">{duration(g.median_minutes)}</td>
-              <td class="r iqr">{duration(g.p25_minutes!)}–{duration(g.p75_minutes!)}</td>
+              <td class="r big">{money(g.median_usd)}</td>
+              <td class="r iqr">{money(g.p25_usd!)}–{money(g.p75_usd!)}</td>
               <td class={`r d ${d === null ? '' : d <= -2 ? 'minus' : d >= 2 ? 'plus' : ''}`}>{d === null ? '' : `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d)}%`}</td>
               <td class="r n">{g.reports}</td>
             </tr>

@@ -1,11 +1,11 @@
-// Data behind the home page: median minutes from window start to the 5-hour limit, per plan and week.
+// Data behind the home page: median API-price value (US dollars) used before the 5-hour limit, per plan and week.
 export interface PlanTrend {
   lab: string;
   plan: string;
-  // Reports in the period; plans under MIN_GROUP are shown as pending.
+  // Reports with token counts in the period; plans under MIN_GROUP are shown as pending.
   reports: number;
   // One median per week (oldest first), null for weeks with too few reports.
-  minutes: (number | null)[];
+  usd: (number | null)[];
 }
 
 export interface HomeData {

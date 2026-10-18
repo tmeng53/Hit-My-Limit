@@ -18,11 +18,8 @@ const labName = (lab: string) => (LABS as Record<string, { en: string; zh: strin
 const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
 const planName = (lab: string, plan: string) =>
   `${BRAND[lab] ?? lab} ${(OPTIONS[lab as Lab]?.plans as Record<string, string> | undefined)?.[plan] ?? plan}`;
-// 95 -> "1h35", 45 -> "45m"
-const duration = (m: number) => {
-  const h = Math.floor(m / 60), mm = Math.round(m % 60);
-  return h ? `${h}h${String(mm).padStart(2, '0')}` : `${mm}m`;
-};
+// What the tokens used before the limit would cost at API prices: 6.1 -> "$6.10", 38 -> "$38", 1240 -> "$1.2k"
+const money = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 10 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
 
 // Every number on the page comes from the same weekly medians: "was" is the first week on the chart, "now" the
 // last, so the diff rows, the headline and the line ends always agree.
@@ -30,9 +27,9 @@ const { weeks } = data;
 const first = (ms: (number | null)[]) => ms.find((m) => m !== null) ?? null;
 const last = (ms: (number | null)[]) => ms.findLast((m) => m !== null) ?? null;
 const trends = (plans: PlanTrend[]) => plans
-  .filter((p) => p.reports >= MIN_GROUP && first(p.minutes) !== null)
+  .filter((p) => p.reports >= MIN_GROUP && first(p.usd) !== null)
   .map((p) => {
-    const was = first(p.minutes)!, now = last(p.minutes)!;
+    const was = first(p.usd)!, now = last(p.usd)!;
     const pct = Math.round((100 * (now - was)) / was);
     const dir = pct <= -2 ? 'tighter' : pct >= 2 ? 'looser' : 'same';
     return { ...p, name: planName(p.lab, p.plan), was, now, pct, dir };
@@ -56,11 +53,12 @@ const text = {
     sample: 'sample data',
     empty: 'When you hit your Claude, ChatGPT or Gemini limit, log how long it lasted. Once enough people do, this page shows whether limits are getting tighter.',
     example: 'example',
-    diffHead: '5-hour limit · median time to lockout',
+    diffHead: '5-hour limit · median usage before lockout, at API prices',
     span: `${monthName.slice(0, 3).toLowerCase()} → now`,
     pending: (k: number) => `${k}/${MIN_GROUP} reports`,
     byPlan: 'all plans →',
-    chartTitle: 'Time until locked out, by week',
+    chartTitle: 'Usage before lockout, by week',
+    note: 'Usage is the tokens in Claude Code and Codex logs, priced at each model’s public API rates. That way cache reads and cheaper models count for what they are worth, and a drop means the plan gives less.',
     changesTitle: 'Recent changes',
     allChanges: 'all changes →',
     sendTitle: 'Hit your limit? Share how long it lasted.',
@@ -78,11 +76,12 @@ const text = {
     sample: '示例数据',
     empty: '额度用完了就来记一下用了多久。报的人多了，就能看出 Claude、ChatGPT、Gemini 的额度是不是在变少。',
     example: '示例',
-    diffHead: '5 小时额度 · 一般多久用完',
+    diffHead: '5 小时额度 · 用完前一般能用多少（按 API 价格算）',
     span: `${month} 月 → 现在`,
     pending: (k: number) => `${k}/${MIN_GROUP} 条`,
     byPlan: '全部套餐 →',
-    chartTitle: '每周用多久就没了',
+    chartTitle: '每周用完前能用多少',
+    note: '用量是 Claude Code 和 Codex 日志里的 token，按各模型的 API 官方价格折成美元。这样缓存和便宜的模型不会被算多，数字变小就说明套餐给的少了。',
     changesTitle: '最近的变化',
     allChanges: '全部变化 →',
     sendTitle: '额度用完了？报一下用了多久。',
@@ -104,8 +103,10 @@ const plotted = Object.keys(LABS)
   .map((lab) => (lead?.lab === lab ? lead : chartRows.filter((r) => r.lab === lab).sort((a, b) => b.reports - a.reports)[0]))
   .filter((r) => !!r);
 const color = (lab: string) => `var(--lab-${lab})`;
-const top = Math.max(60, ...plotted.flatMap((p) => p.minutes.filter((m): m is number => m !== null)));
-const YMAX = Math.ceil((top * 1.2) / 30) * 30;
+const top = Math.max(1, ...plotted.flatMap((p) => p.usd.filter((m): m is number => m !== null)));
+// Grid lines every STEP dollars, with three to five of them.
+const STEP = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find((s) => (top * 1.2) / s <= 5) ?? 1000;
+const YMAX = Math.ceil((top * 1.2) / STEP) * STEP;
 const sizes = [
   { cls: 'wide', W: 880, H: 250, L: 32, R: 70, T: 10, B: 46, every: 2 },
   { cls: 'narrow', W: 360, H: 230, L: 26, R: 52, T: 10, B: 46, every: 4 },
@@ -132,10 +133,10 @@ const recent = changes.slice(0, 3);
     <p class="answer">
       {zh ? (
         lead.dir === 'same' ? <>额度和 {month} 月差不多。</> :
-        <>{lead.name} 比 {month} 月<b class={lead.dir}>{lead.dir === 'tighter' ? '提前' : '多撑'} {Math.abs(lead.pct)}%</b>{lead.dir === 'tighter' ? ' 用完' : ''}。</>
+        <>{lead.name} 比 {month} 月<b class={lead.dir}>{lead.dir === 'tighter' ? '少给了' : '多给了'} {Math.abs(lead.pct)}%</b>。</>
       ) : (
         lead.dir === 'same' ? <>Limits look about the same as in {monthName}.</> :
-        <>{lead.name} {lead.dir === 'tighter' ? 'runs out' : 'lasts'} <b class={lead.dir}>{Math.abs(lead.pct)}% {lead.dir === 'tighter' ? 'sooner' : 'longer'}</b> than in {monthName}.</>
+        <>{lead.name} gives <b class={lead.dir}>{Math.abs(lead.pct)}% {lead.dir === 'tighter' ? 'less' : 'more'}</b> usage than in {monthName}.</>
       )}
     </p>
   )}
@@ -150,9 +151,9 @@ const recent = changes.slice(0, 3);
     <div class={`row ${r.dir}`}>
       <span class="s">{r.dir === 'tighter' ? '-' : r.dir === 'looser' ? '+' : ' '}</span>
       <span class="plan"><i class="dot" style={`background:${color(r.lab)}`}></i>{r.name}</span>
-      <span class="was">{duration(r.was)}</span>
+      <span class="was">{money(r.was)}</span>
       <span class="arr">→</span>
-      <span class="now">{duration(r.now)}</span>
+      <span class="now">{money(r.now)}</span>
       <span class="d">{r.pct > 0 ? '+' : r.pct < 0 ? '−' : ''}{Math.abs(r.pct)}%</span>
     </div>
   ))}
@@ -178,10 +179,10 @@ const recent = changes.slice(0, 3);
   </div>
   {sizes.map((g) => (
     <svg viewBox={`0 0 ${g.W} ${g.H}`} class={g.cls} role="img" aria-label={text.chartTitle}>
-      {Array.from({ length: YMAX / 60 }, (_, k) => (k + 1) * 60).map((m) => (
+      {Array.from({ length: Math.round(YMAX / STEP) }, (_, k) => (k + 1) * STEP).map((m) => (
         <g>
           <line x1={g.L} x2={g.W - g.R} y1={g.y(m)} y2={g.y(m)} class="grid" />
-          <text x="0" y={g.y(m) + 4} class="axis">{m / 60}h</text>
+          <text x="0" y={g.y(m) + 4} class="axis">${m}</text>
         </g>
       ))}
       <text x="0" y={g.base + 4} class="axis">0</text>
@@ -195,22 +196,23 @@ const recent = changes.slice(0, 3);
         </g>
       ))}
       {plotted.map((p) => {
-        const i = p.minutes.findLastIndex((m) => m !== null);
+        const i = p.usd.findLastIndex((m) => m !== null);
         return (
           <g>
-            <path d={path(g, p.minutes)} fill="none" stroke={color(p.lab)} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-            <circle cx={g.x(i)} cy={g.y(p.minutes[i]!)} r="3.5" fill={color(p.lab)} />
-            <text x={g.x(i) + 10} y={g.y(p.minutes[i]!) + 4} class="label">{duration(p.minutes[i]!)}</text>
+            <path d={path(g, p.usd)} fill="none" stroke={color(p.lab)} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+            <circle cx={g.x(i)} cy={g.y(p.usd[i]!)} r="3.5" fill={color(p.lab)} />
+            <text x={g.x(i) + 10} y={g.y(p.usd[i]!) + 4} class="label">{money(p.usd[i]!)}</text>
           </g>
         );
       })}
       {cw.map((w, i) => (
         <rect x={g.x(i) - g.step / 2} y={g.T} width={g.step} height={g.base - g.T} class="hit">
-          <title>{[weekLabel(w), ...plotted.map((p) => `${p.name} ${p.minutes[i] === null ? '–' : duration(p.minutes[i]!)}`)].join('\n')}</title>
+          <title>{[weekLabel(w), ...plotted.map((p) => `${p.name} ${p.usd[i] === null ? '–' : money(p.usd[i]!)}`)].join('\n')}</title>
         </rect>
       ))}
     </svg>
   ))}
+  <p class="meta note">{text.note}</p>
 </section>
 )}
 
@@ -261,6 +263,7 @@ const recent = changes.slice(0, 3);
   .answer b { font-weight: 600; }
   .answer.intro { font-size: 17px; max-width: 58ch; }
   .preview svg { opacity: 0.45; }
+  .note { margin-top: 14px; max-width: 72ch; line-height: 1.6; }
   .tag { font-size: var(--s-sm); font-weight: 400; color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; margin-left: 10px; vertical-align: 2px; }
 
   .diff { border: 1px solid var(--line); }

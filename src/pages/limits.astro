@@ -1,11 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
+import { SAMPLE_GROUPS } from '../lib/sample';
 import Limits from '../components/Limits.astro';
 
 // Rendered on request and cached at the edge for 5 minutes.
 export const prerender = false;
 Astro.response.headers.set('cache-control', 'public, s-maxage=300, stale-while-revalidate=3600');
+// In development, ?sample shows made-up numbers for design work.
+const sample = import.meta.env.DEV && Astro.url.searchParams.has('sample') ? SAMPLE_GROUPS : undefined;
 ---
 <Base lang="en" path="/limits" title="Limits">
-  <Limits lang="en" />
+  <Limits lang="en" sample={sample} />
 </Base>
