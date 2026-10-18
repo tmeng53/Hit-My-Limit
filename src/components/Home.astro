@@ -1,7 +1,8 @@
 ---
 import { LABS, MARK, isoDate, titleFor, type Change, type Lang } from '../lib/site';
 import { MIN_GROUP, OPTIONS, type Lab } from '../lib/reports';
-import type { HomeData } from '../lib/home';
+import type { HomeData, PlanTrend } from '../lib/home';
+import { SAMPLE } from '../lib/sample';
 import Term from './Term.astro';
 
 interface Props {
@@ -28,7 +29,7 @@ const duration = (m: number) => {
 const { weeks } = data;
 const first = (ms: (number | null)[]) => ms.find((m) => m !== null) ?? null;
 const last = (ms: (number | null)[]) => ms.findLast((m) => m !== null) ?? null;
-const rows = data.plans
+const trends = (plans: PlanTrend[]) => plans
   .filter((p) => p.reports >= MIN_GROUP && first(p.minutes) !== null)
   .map((p) => {
     const was = first(p.minutes)!, now = last(p.minutes)!;
@@ -37,6 +38,7 @@ const rows = data.plans
     return { ...p, name: planName(p.lab, p.plan), was, now, pct, dir };
   })
   .sort((a, b) => a.pct - b.pct);
+const rows = trends(data.plans);
 const pending = data.plans.filter((p) => !rows.some((r) => r.lab === p.lab && r.plan === p.plan));
 
 // The headline names the plan that moved most.
@@ -48,9 +50,10 @@ const monthName = new Date(Date.UTC(2000, month - 1, 1)).toLocaleString('en-US',
 const text = {
   en: {
     kicker: { tighter: 'Time to touch grass.', looser: 'Less grass this month.', same: 'No grass today.' }[leadDir],
-    meta: `${n(data.reports)} reports from ${n(data.people)} people · last ${data.days} days`,
+    meta: `${n(data.reports)} report${data.reports === 1 ? '' : 's'} from ${n(data.people)} ${data.people === 1 ? 'person' : 'people'} · last ${data.days} days`,
     sample: 'sample data',
-    empty: 'No reports yet. Hit a limit and be the first.',
+    empty: 'Claude, ChatGPT, Gemini: are the limits getting worse? Log it when you run out. Enough logs and we’ll know.',
+    example: 'example',
     diffHead: '5-hour limit · median time to lockout',
     span: `${monthName.slice(0, 3).toLowerCase()} → now`,
     pending: (k: number) => `${k}/${MIN_GROUP} reports`,
@@ -69,7 +72,8 @@ const text = {
     kicker: { tighter: '又该摸鱼了。', looser: '摸鱼时间变少了。', same: '今天不用摸鱼。' }[leadDir],
     meta: `最近 ${data.days} 天 · ${n(data.people)} 人报了 ${n(data.reports)} 条`,
     sample: '示例数据',
-    empty: '还没有数据。下次额度用完了，来记一笔。',
+    empty: 'Claude、ChatGPT、Gemini 的额度是不是越来越不够用了？被限额了就来这儿说一声，看看是不是大家都一样。',
+    example: '示例',
     diffHead: '5 小时额度 · 一般多久用完',
     span: `${month} 月 → 现在`,
     pending: (k: number) => `${k}/${MIN_GROUP} 条`,
@@ -86,9 +90,14 @@ const text = {
   },
 }[lang];
 
+// Until a plan has enough reports, the chart shows made-up numbers, labeled as an example, so a first visitor
+// sees what the page is for.
+const preview = rows.length === 0;
+const cw = preview ? SAMPLE.weeks : weeks;
+const chartRows = preview ? trends(SAMPLE.plans) : rows;
 // The chart shows one plan per lab: the headline's plan for its lab, otherwise the most-reported one.
 const plotted = Object.keys(LABS)
-  .map((lab) => (lead?.lab === lab ? lead : rows.filter((r) => r.lab === lab).sort((a, b) => b.reports - a.reports)[0]))
+  .map((lab) => (lead?.lab === lab ? lead : chartRows.filter((r) => r.lab === lab).sort((a, b) => b.reports - a.reports)[0]))
   .filter((r) => !!r);
 const color = (lab: string) => `var(--lab-${lab})`;
 const top = Math.max(60, ...plotted.flatMap((p) => p.minutes.filter((m): m is number => m !== null)));
@@ -99,15 +108,15 @@ const sizes = [
 ].map((g) => ({
   ...g,
   base: g.H - g.B,
-  x: (i: number) => g.L + (i * (g.W - g.L - g.R)) / (weeks.length - 1),
+  x: (i: number) => g.L + (i * (g.W - g.L - g.R)) / (cw.length - 1),
   y: (m: number) => g.T + (g.H - g.T - g.B) * (1 - m / YMAX),
-  step: (g.W - g.L - g.R) / (weeks.length - 1),
+  step: (g.W - g.L - g.R) / (cw.length - 1),
 }));
 const path = (g: (typeof sizes)[number], ms: (number | null)[]) =>
   ms.map((m, i) => (m === null ? '' : `${i && ms[i - 1] !== null ? 'L' : 'M'}${g.x(i).toFixed(1)},${g.y(m).toFixed(1)}`)).join('');
 const start = weeks.length ? Date.parse(`${weeks[0]}T00:00:00Z`) : Date.now();
 const events = changes
-  .filter((c) => c.data.date.getTime() >= start && c.data.direction !== 'neutral')
+  .filter((c) => !preview && c.data.date.getTime() >= start && c.data.direction !== 'neutral')
   .map((c) => ({ c, i: Math.min(weeks.length - 1, Math.floor((c.data.date.getTime() - start) / (7 * 86400000))) }));
 const weekLabel = (w: string) => w.slice(5).replace('-', '/');
 
@@ -126,7 +135,7 @@ const recent = changes.slice(0, 3);
       )}
     </p>
   )}
-  {!lead && <p class="answer">{text.empty}</p>}
+  {!lead && <p class="answer intro">{text.empty}</p>}
   {data.reports > 0 && <p class="meta">{text.meta}{data.sample && <> · <span class="sample">{text.sample}</span></>}</p>}
 </section>
 
@@ -158,9 +167,9 @@ const recent = changes.slice(0, 3);
 )}
 
 {plotted.length > 0 && (
-<section class="chart">
+<section class:list={['chart', { preview }]}>
   <div class="title">
-    <h2>{text.chartTitle}</h2>
+    <h2>{text.chartTitle}{preview && <span class="tag">{text.example}</span>}</h2>
     <span class="legend">{plotted.map((p) => <span><i style={`background:${color(p.lab)}`}></i>{p.name}</span>)}</span>
   </div>
   {sizes.map((g) => (
@@ -173,7 +182,7 @@ const recent = changes.slice(0, 3);
       ))}
       <text x="0" y={g.base + 4} class="axis">0</text>
       <line x1={g.L} x2={g.W - g.R} y1={g.base} y2={g.base} class="base" />
-      {weeks.map((w, i) => i % g.every === 0 && <text x={g.x(i)} y={g.base + 17} class="axis" text-anchor="middle">{weekLabel(w)}</text>)}
+      {cw.map((w, i) => i % g.every === 0 && <text x={g.x(i)} y={g.base + 17} class="axis" text-anchor="middle">{weekLabel(w)}</text>)}
       {events.map(({ c, i }) => (
         <g class="event">
           <line x1={g.x(i)} x2={g.x(i)} y1={g.base} y2={g.base - 8} />
@@ -196,7 +205,7 @@ const recent = changes.slice(0, 3);
           </g>
         );
       })}
-      {weeks.map((w, i) => (
+      {cw.map((w, i) => (
         <rect x={g.x(i) - g.step / 2} y={g.T} width={g.step} height={g.base - g.T} class="hit">
           <title>{[weekLabel(w), ...plotted.map((p) => `${p.name} ${p.minutes[i] === null ? '–' : duration(p.minutes[i]!)}`)].join('\n')}</title>
         </rect>
@@ -251,6 +260,9 @@ const recent = changes.slice(0, 3);
   h1 { font: 600 44px/1.1 var(--font); letter-spacing: -0.03em; margin: 0 0 18px; }
   .answer { font-size: 20px; line-height: 1.45; margin: 0 0 10px; max-width: 48ch; }
   .answer b { font-weight: 600; }
+  .answer.intro { font-size: 17px; max-width: 58ch; }
+  .preview svg { opacity: 0.45; }
+  .tag { font-size: var(--s-sm); font-weight: 400; color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; margin-left: 10px; vertical-align: 2px; }
 
   .diff { border: 1px solid var(--line); }
   .diff .head { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: var(--s-sm); color: var(--muted); }
@@ -301,6 +313,7 @@ const recent = changes.slice(0, 3);
     .hero { padding: 32px 0 28px; }
     h1 { font-size: 32px; }
     .answer { font-size: 17px; }
+    .answer.intro { font-size: 15px; }
     section { margin-top: 52px; }
     .diff .head { padding: 10px; }
     .row { grid-template-columns: 14px minmax(0, 1fr) 44px 14px 44px 44px; padding: 7px 10px; font-size: var(--s-sm); }

@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tmeng53/hit-my-limit.git",
+    "url": "git+https://github.com/tmeng53/Hit-My-Limit.git",
     "directory": "cli"
   },
   "homepage": "https://hitmylimit.com/share",
