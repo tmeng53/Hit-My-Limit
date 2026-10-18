@@ -9,7 +9,7 @@ const changes = defineCollection({
     date: z.coerce.date(),
     // effective = took effect, announced = lab announced it, reported = first public report
     date_kind: z.enum(['effective', 'announced', 'reported']),
-    lab: z.enum(['anthropic', 'openai', 'google']),
+    lab: z.enum(['anthropic', 'openai', 'google', 'cursor']),
     product: z.string(),
     plans: z.array(z.string()).default([]),
     // reset = a lab reset people's limits early, for free (after an outage, a launch, etc.)

@@ -20,6 +20,11 @@ export const OPTIONS = {
     plans: { free: 'Free', 'ai-plus': 'AI Plus', 'ai-pro': 'AI Pro', 'ai-ultra': 'AI Ultra', other: 'Other' },
     models: [],
   },
+  cursor: {
+    products: { cursor: 'Cursor', 'cursor-cli': 'Cursor CLI' },
+    plans: { free: 'Hobby', pro: 'Pro', 'pro-plus': 'Pro+', ultra: 'Ultra', teams: 'Teams', enterprise: 'Enterprise', other: 'Other' },
+    models: [],
+  },
 } as const;
 
 export type Lab = keyof typeof OPTIONS;

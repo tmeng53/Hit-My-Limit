@@ -6,15 +6,16 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 const OFFICIAL = [
   'anthropic.com', 'claude.com', 'claude.ai', 'openai.com', 'chatgpt.com',
   'google.com', 'blog.google', 'googleblog.com', 'github.com/anthropics', 'github.com/openai',
-  'github.com/google-gemini', 'techcrunch.com', 'theverge.com', 'arstechnica.com',
+  'github.com/google-gemini', 'cursor.com', 'forum.cursor.com', 'techcrunch.com', 'theverge.com', 'arstechnica.com',
   'theinformation.com', 'wired.com', 'reuters.com', 'bloomberg.com',
 ];
-const LABS = { anthropic: 'anthropic', openai: 'openai', google: 'google' };
+const LABS = { anthropic: 'anthropic', openai: 'openai', google: 'google', cursor: 'cursor' };
 // Where each lab speaks for itself. A free reset sourced here skips review, since resets only matter for a few hours.
 const LAB_OWNED = {
   anthropic: ['anthropic.com', 'claude.com', 'claude.ai', 'github.com/anthropics', 'x.com/anthropicai', 'x.com/claudeai'],
   openai: ['openai.com', 'chatgpt.com', 'github.com/openai', 'x.com/openai', 'x.com/openaidevs', 'x.com/chatgptapp'],
   google: ['blog.google', 'gemini.google.com', 'ai.google.dev', 'github.com/google-gemini', 'x.com/googleai', 'x.com/geminiapp'],
+  cursor: ['cursor.com', 'x.com/cursor_ai'],
 };
 const KINDS = { 'Usage limit changed': 'limit', 'How usage is displayed changed': 'display', 'Free limit reset': 'reset' };
 const DIRECTIONS = { Tighter: 'tighter', Looser: 'looser', Mixed: 'mixed', 'Display only': 'neutral' };

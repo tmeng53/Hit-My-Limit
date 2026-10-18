@@ -3,6 +3,7 @@ export const PLANS = {
   anthropic: [['free', 'Free'], ['pro', 'Pro'], ['max-5x', 'Max 5x'], ['max-20x', 'Max 20x'], ['team', 'Team'], ['enterprise', 'Enterprise'], ['other', 'Other']],
   openai: [['free', 'Free'], ['go', 'Go'], ['plus', 'Plus'], ['pro-100', 'Pro 100'], ['pro-200', 'Pro 200'], ['pro-500', 'Pro 500'], ['business', 'Business'], ['enterprise', 'Enterprise'], ['other', 'Other']],
   google: [['free', 'Free'], ['ai-plus', 'AI Plus'], ['ai-pro', 'AI Pro'], ['ai-ultra', 'AI Ultra'], ['other', 'Other']],
+  cursor: [['free', 'Hobby'], ['pro', 'Pro'], ['pro-plus', 'Pro+'], ['ultra', 'Ultra'], ['teams', 'Teams'], ['enterprise', 'Enterprise'], ['other', 'Other']],
 };
 export const WORK = [['coding', 'coding'], ['chat', 'chat'], ['research', 'research'], ['other', 'other']];
 export const ACCOUNTS = [
@@ -18,5 +19,6 @@ export const FELT = [
 ];
 export const PRODUCT_NAMES = {
   'claude-code': 'Claude Code', 'claude-app': 'Claude', codex: 'Codex', chatgpt: 'ChatGPT', 'gemini-app': 'Gemini', 'gemini-cli': 'Gemini CLI',
+  cursor: 'Cursor', 'cursor-cli': 'Cursor CLI',
 };
 export const WINDOW_NAMES = { '5h': '5-hour', daily: 'daily', weekly: 'weekly', monthly: 'monthly' };

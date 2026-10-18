@@ -1,6 +1,6 @@
 # hitmylimit
 
-Share when you hit an AI usage limit: Claude, Claude Code, ChatGPT, Codex or Gemini.
+Share when you hit an AI usage limit: Claude, Claude Code, ChatGPT, Codex, Gemini or Cursor.
 
 ```sh
 npx hitmylimit
@@ -22,7 +22,7 @@ Each hit shows how long the limit lasted, the token count and a bar per model:
 
 If there's nothing new, it lists your last few hits, marked "(sent to hitmylimit)".
 
-To report a limit the logs don't show (claude.ai, ChatGPT, Gemini...), use `--source manual` to answer 3 quick
+To report a limit the logs don't show (claude.ai, ChatGPT, Cursor...), use `--source manual` to answer 3 quick
 questions.
 
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the

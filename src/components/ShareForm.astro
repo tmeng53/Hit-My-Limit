@@ -103,7 +103,7 @@ const text = {
   },
 }[lang];
 
-const labNames = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google' };
+const labNames = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', cursor: 'Cursor' };
 // Passed to the page script so the plan and model lists follow the chosen product's lab.
 const options = Object.fromEntries(
   Object.entries(OPTIONS).map(([lab, o]) => [lab, { plans: o.plans, models: o.models }]),
