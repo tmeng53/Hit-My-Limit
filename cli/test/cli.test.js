@@ -200,6 +200,87 @@ test('limit notices that cannot be read are counted, rate-limit errors are not',
   assert.equal(unreadNote([['Codex', []]]), null);
 });
 
+test('status: open Claude window next to earlier hits, Codex windows, and a drop in tokens before the limit', async () => {
+  const { status } = await import('../src/status.js');
+  const now = Date.parse('2026-10-17T10:30:00Z');
+  const cdir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
+  const u = (n) => ({ input_tokens: 0, output_tokens: n, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 });
+  writeFileSync(join(cdir, 'a.jsonl'), lines([
+    // Two earlier hits at 4M tokens, one this week at 2M.
+    assistant('2026-10-02T09:10:00Z', 1, u(4_000_000)),
+    notice('2026-10-02T11:00:00Z', "You've hit your limit · resets 2pm (UTC)"),
+    assistant('2026-10-05T09:10:00Z', 2, u(4_000_000)),
+    notice('2026-10-05T11:00:00Z', "You've hit your limit · resets 2pm (UTC)"),
+    assistant('2026-10-15T09:10:00Z', 3, u(2_000_000)),
+    notice('2026-10-15T11:00:00Z', "You've hit your limit · resets 2pm (UTC)"),
+    // The open window.
+    assistant('2026-10-17T09:20:00Z', 4, u(1_000_000)),
+    assistant('2026-10-17T10:00:00Z', 5, u(500_000)),
+  ]));
+  const xdir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const reset5h = Date.parse('2026-10-17T12:00:00Z') / 1000;
+  const old5h = Date.parse('2026-10-17T08:00:00Z') / 1000;
+  const tc = (time, primaryReset, used) => ({
+    timestamp: T(time), type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: { total_token_usage: { input_tokens: 10, cached_input_tokens: 0, output_tokens: 1 } },
+      rate_limits: {
+        plan_type: 'plus',
+        primary: { used_percent: used, window_minutes: 300, resets_at: primaryReset },
+        secondary: { used_percent: 30.4, window_minutes: 10080, resets_at: reset5h + 3 * 86400 },
+      },
+    },
+  });
+  writeFileSync(join(xdir, 'rollout-new.jsonl'), lines([tc('2026-10-17T09:00:00Z', reset5h, 42.6)]));
+  writeFileSync(join(xdir, 'rollout-old.jsonl'), lines([tc('2026-10-17T05:00:00Z', old5h, 90)]));
+
+  const claude = await readClaude([cdir], since);
+  const codex = await readCodex([xdir], since);
+  const s = status({ claude, codex, claudeFound: claudeHits(claude), codexFound: codexHits(codex), state: { sent: [], plans: {} }, now });
+
+  assert.equal(new Date(s.claude.window.start).toISOString(), '2026-10-17T09:00:00.000Z');
+  assert.equal(new Date(s.claude.window.resets_at).toISOString(), '2026-10-17T14:00:00.000Z');
+  assert.equal(s.claude.window.tokens, 1_500_000);
+  assert.equal(s.claude.window.typical_at_limit, 4_000_000);
+  assert.equal(Object.values(s.claude.window.models).reduce((n, m) => n + m.total, 0), 1_500_000);
+  assert.equal(s.claude.limited_until, null);
+  assert.deepEqual(s.codex.limits, [
+    { window: '5h', used: 43, resets_at: reset5h * 1000 },
+    { window: 'weekly', used: 30, resets_at: (reset5h + 3 * 86400) * 1000 },
+  ]);
+  assert.equal(s.codex.plan, 'plus');
+  assert.equal(new Date(s.codex.window_start).toISOString(), new Date(reset5h * 1000 - 5 * 3600_000).toISOString());
+  assert.equal(s.hits.length, 3);
+  assert.match(s.hits[0].key, /^anthropic:5h:2026-10-15T09:00/);
+  // The same per-model tokens the report would send.
+  assert.equal(Object.values(s.hits[0].models).reduce((n, m) => n + m.total, 0), s.hits[0].tokens);
+  assert.ok(s.hits[0].requests > 0);
+  assert.deepEqual(s.trend, [{
+    lab: 'anthropic', window: '5h',
+    recent: { n: 1, tokens: 2_000_000, minutes: 120 },
+    earlier: { n: 2, tokens: 4_000_000, minutes: 120 },
+  }]);
+});
+
+test('status: a window whose reset has passed shows as empty', async () => {
+  const { codexNow } = await import('../src/status.js');
+  const now = Date.parse('2026-10-17T10:00:00Z');
+  const s = codexNow({ latest: { time: now - 3 * 3600_000, plan: null, snap: [{ used: 100, minutes: 300, resetsAt: now - 60_000 }] } }, now);
+  assert.deepEqual(s.limits, [{ window: '5h', used: 0, resets_at: null }]);
+});
+
+test('status: after a Claude Code window ends, the last one is still shown', async () => {
+  const { claudeNow } = await import('../src/status.js');
+  const at = (iso, n) => ({ time: Date.parse(iso), model: 'claude-opus-4', input: n, output: 0, cacheRead: 0, cacheWrite: 0 });
+  const usage = [at('2026-10-17T05:10:00Z', 100), at('2026-10-17T09:50:00Z', 200)];
+  const c = claudeNow({ usage }, [], Date.parse('2026-10-17T10:30:00Z'));
+  assert.equal(c.window, null);
+  assert.equal(new Date(c.last_window.ended_at).toISOString(), '2026-10-17T10:00:00.000Z');
+  assert.equal(c.last_window.tokens, 300);
+  assert.deepEqual(Object.keys(c.last_window.models), ['opus']);
+});
+
 test('Codex: usage before the period sets the baseline but is not counted', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
   const tc = (time, input) => ({

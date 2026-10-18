@@ -1,0 +1,165 @@
+import AppKit
+import SwiftUI
+
+// HITMYLIMIT_PREVIEW=1 shows the panel and the share window as ordinary windows filled with sample data,
+// so CI can take screenshots of the design. HITMYLIMIT_APPEARANCE=dark switches to dark mode.
+enum Preview {
+    static var enabled: Bool { ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW"] != nil }
+    private static var windows: [NSWindow] = []
+
+    static func sampleStatus() -> Status {
+        let now = Date().timeIntervalSince1970 * 1000
+        let h = 3_600_000.0, d = 24 * h
+        let start = (now / h).rounded(.down) * h - 2 * h
+        let json = """
+        {"generated_at":\(now),
+         "claude":{"window":{"start":\(start),"resets_at":\(start + 5 * h),"tokens":2900000,"requests":214,"typical_at_limit":4600000,"past_hits":4,
+                   "models":{"opus":{"total":2450000,"input":20,"output":28000,"cache_read":2300000,"cache_write":121980},"haiku":{"total":450000,"input":10,"output":5000,"cache_read":420000,"cache_write":24990}}},
+                   "limited_until":null,"week_tokens":31200000,"last_used":\(now - 60_000)},
+         "codex":{"as_of":\(now - 300_000),"plan":"plus","window_start":\(now - 2.5 * h),
+                  "models":{"gpt-5.1-codex":{"total":1800000,"input":400000,"output":60000,"cache_read":1340000,"cache_write":0},"gpt-5.1-codex-mini":{"total":300000,"input":90000,"output":10000,"cache_read":200000,"cache_write":0}},
+                  "limits":[
+                   {"window":"5h","used":43,"resets_at":\(now + 2.5 * h)},
+                   {"window":"weekly","used":71,"resets_at":\(now + 3 * d)}]},
+         "hits":[
+           {"key":"a1","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 2 * d - 3 * h),"hit":\(now - 2 * d - 1 * h),"tokens":3100000,"requests":241,"models":{"opus":{"total":2700000,"input":30,"output":34000,"cache_read":2520000,"cache_write":145970},"sonnet":{"total":400000,"input":10,"output":6000,"cache_read":380000,"cache_write":13990}},"plan":null,"sent":false},
+           {"key":"a2","lab":"openai","product":"codex","window":"5h","start":\(now - 4 * d - 4 * h),"hit":\(now - 4 * d - 1.5 * h),"tokens":5200000,"plan":"plus","sent":false},
+           {"key":"a3","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 12 * d - 5 * h),"hit":\(now - 12 * d - 1.75 * h),"tokens":4500000,"plan":"max-5x","sent":true},
+           {"key":"a4","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 19 * d - 5 * h),"hit":\(now - 19 * d - 1.5 * h),"tokens":4700000,"plan":"max-5x","sent":true}],
+         "trend":[{"lab":"anthropic","window":"5h","recent":{"n":1,"tokens":3100000,"minutes":120},"earlier":{"n":3,"tokens":4600000,"minutes":205}}],
+         "plans":{"anthropic":"max-5x"},
+         "unread":{"claude":0,"codex":0}}
+        """
+        return try! JSONDecoder().decode(Status.self, from: Data(json.utf8))
+    }
+
+    // The quiet state most people see: Claude Code between windows, Codex barely used, nothing new to share.
+    static func quietStatus() -> Status {
+        let now = Date().timeIntervalSince1970 * 1000
+        let h = 3_600_000.0, d = 24 * h
+        let json = """
+        {"generated_at":\(now),
+         "claude":{"window":null,"limited_until":null,"week_tokens":620500000,"last_used":\(now - 72 * 60_000),
+                   "last_window":{"start":\(now - 6.33 * h),"ended_at":\(now - 1.33 * h),"tokens":13500000,
+                                  "models":{"claude-opus-4-8":{"total":13500000,"input":900,"output":120000,"cache_read":12800000,"cache_write":579100}}}},
+         "codex":{"as_of":\(now - 300_000),"plan":"plus","window_start":\(now - 1 * h),
+                  "limits":[
+                   {"window":"5h","used":9,"resets_at":\(now + 4 * h)},
+                   {"window":"weekly","used":3,"resets_at":\(now + 5 * d)}]},
+         "hits":[
+           {"key":"q1","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 3 * d - 4 * h),"hit":\(now - 3 * d - 1 * h),"tokens":14100000,"plan":"max-20x","sent":true},
+           {"key":"q2","lab":"openai","product":"codex","window":"5h","start":\(now - 9 * d - 4 * h),"hit":\(now - 9 * d - 2 * h),"tokens":5200000,"plan":"plus","sent":true},
+           {"key":"q3","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 15 * d - 5 * h),"hit":\(now - 15 * d - 1 * h),"tokens":15800000,"plan":"max-20x","sent":true}],
+         "trend":[],
+         "plans":{"anthropic":"max-20x"},
+         "unread":{"claude":0,"codex":0}}
+        """
+        return try! JSONDecoder().decode(Status.self, from: Data(json.utf8))
+    }
+
+    static let sampleChanges: [Change] = [
+        Change(id: "0", lab: "anthropic", title: "Usage limits reset for all paid plans after an outage", link: nil, date: Date().addingTimeInterval(-3600), kind: "reset"),
+        Change(id: "1", lab: "google", title: "Free Gemini users limited to Flash-Lite", link: nil, date: Date().addingTimeInterval(-8 * 86400)),
+        Change(id: "2", lab: "openai", title: "New Pro $500 tier; Pro $200 allowances changed", link: nil, date: Date().addingTimeInterval(-18 * 86400)),
+        Change(id: "3", lab: "anthropic", title: "Claude Code weekly limits settle 25% above old base", link: nil, date: Date().addingTimeInterval(-33 * 86400)),
+    ]
+
+    static let sampleReport = """
+    [
+      {
+        "account" : "own",
+        "client_id" : "3f9c0d2a8b7e4c1f9a6d5e2b1c0f8a7d",
+        "felt" : null,
+        "hit_on" : "2026-10-15",
+        "lab" : "anthropic",
+        "minutes_to_limit" : 120,
+        "model" : "opus",
+        "plan" : "max-5x",
+        "product" : "claude-code",
+        "requests" : 241,
+        "source" : "cli",
+        "start_hour" : 14,
+        "tokens" : { "cache_read" : 2900000, "cache_write" : 160000, "input" : 30, "output" : 40000, "total" : 3100030 },
+        "window" : "5h",
+        "work" : "coding"
+      }
+    ]
+    """
+
+    // Made-up numbers in the shape the sent screen reads.
+    static let sampleSent = try! JSONDecoder().decode(SendResult.self, from: Data("""
+    {"sent":2,"duplicate":false,
+     "comparison":{"percent":62,"n":212,"sameWork":false,"median_minutes":150,"bin_minutes":15,
+                   "bins":[1,2,3,5,8,11,14,17,19,21,22,21,19,16,12,9,6,3,2,1]},
+     "comparison_line":"You hit the limit sooner than 62% of 212 recent reports on the same plan.",
+     "reports":[{"lab":"anthropic","plan":"max-5x","window":"5h","minutes_to_limit":120}]}
+    """.utf8))
+
+    @MainActor static func show(_ model: Model) {
+        if ProcessInfo.processInfo.environment["HITMYLIMIT_APPEARANCE"] == "dark" {
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+        model.status = sampleStatus()
+        model.changes = sampleChanges
+        guard let screen = NSScreen.main?.visibleFrame else { return }
+        // The panel as the menu bar shows it: a rounded popover on the system material.
+        // The panel as the menu bar shows it, a rounded popover on the system material, over a wallpaper-like
+        // backdrop so the material has something to show.
+        let panelView = ZStack {
+            LinearGradient(colors: [Color(red: 0.35, green: 0.45, blue: 0.85), Color(red: 0.75, green: 0.45, blue: 0.7), Color(red: 0.95, green: 0.65, blue: 0.45)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            PanelView(model: model)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
+                .padding(28)
+        }
+        .fixedSize()
+        let panel = window(panelView, title: "Panel")
+        panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY))
+        // The panel with the pointer on the latest limit hit in the strip.
+        let hover = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, hoverDay: 27)
+        }.fixedSize(), title: "Panel, hovering a limit hit")
+        hover.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - hover.frame.width - 20, y: screen.maxY))
+        let quietModel = Model()
+        quietModel.status = quietStatus()
+        quietModel.changes = sampleChanges
+        let quiet = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: quietModel)
+        }.fixedSize(), title: "Panel, quiet")
+        quiet.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY - panel.frame.height - 10))
+        let expanded = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, expanded: true)
+        }.fixedSize(), title: "Panel, rows open")
+        expanded.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - hover.frame.width - 20, y: screen.maxY - hover.frame.height - 10))
+        let empty = window(ShareView(model: quietModel), title: "Share limit hits")
+        empty.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 300))
+        let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
+        share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
+        let sent = window(ShareView(model: model, sampleSent: sampleSent), title: "Share limit hits")
+        sent.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 10))
+        let settings = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, showSettings: true)
+        }.fixedSize(), title: "Panel, settings")
+        settings.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - share.frame.height - 30))
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        // Window numbers for `screencapture -l`.
+        if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
+            try? "panel \(panel.windowNumber)\nhover \(hover.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\nquiet \(quiet.windowNumber)\nexpanded \(expanded.windowNumber)\nshare-empty \(empty.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+        }
+    }
+
+    @MainActor private static func window<V: View>(_ view: V, title: String) -> NSWindow {
+        let w = NSWindow(contentViewController: NSHostingController(rootView: view))
+        w.title = title
+        w.styleMask = [.titled]
+        w.makeKeyAndOrderFront(nil)
+        windows.append(w)
+        return w
+    }
+}

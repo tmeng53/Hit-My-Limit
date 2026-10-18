@@ -1,0 +1,93 @@
+name: Mac app
+
+on:
+  pull_request:
+    paths: ['mac/**', 'cli/**', '.github/workflows/mac.yml']
+  push:
+    tags: ['mac-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      # Signing turns on once these secrets exist; without them the app is signed ad hoc.
+      - name: Import Developer ID certificate
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CERT_P12" ]; then echo "No certificate; building unsigned."; exit 0; fi
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          echo "$MAC_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)"/\1/')
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/mac-v* ]]; then export VERSION="${GITHUB_REF#refs/tags/mac-v}"; fi
+          mac/build.sh
+
+      # The tool runs with the Node inside the app, on both architectures, from a path with spaces.
+      - name: Check the bundled Node
+        run: |
+          R="mac/dist/Hit My Limit.app/Contents/Resources"
+          "$R/node/node" "$R/cli/bin/hitmylimit.js" status --json | head -c 300; echo
+          arch -x86_64 "$R/node/node" -p process.versions.node
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HitMyLimit-mac
+          path: mac/dist/*.dmg
+
+      # Screenshots of the panel and the share window with sample data, for reviewing the design. They are
+      # pushed to refs/screenshots/pr-<number>, outside the branches, so nothing deploys them.
+      - name: Screenshots
+        if: github.event_name == 'pull_request'
+        run: |
+          APP="mac/dist/Hit My Limit.app/Contents/MacOS/HitMyLimit"
+          mkdir -p shots
+          for mode in light dark; do
+            rm -f /tmp/hml-windows.txt
+            HITMYLIMIT_PREVIEW=1 HITMYLIMIT_APPEARANCE=$mode HITMYLIMIT_PREVIEW_WINDOWS=/tmp/hml-windows.txt "$APP" &
+            PID=$!
+            sleep 8
+            cat /tmp/hml-windows.txt
+            while read -r name id; do screencapture -x -o -l"$id" "shots/$name-$mode.png"; done < /tmp/hml-windows.txt
+            screencapture -x "shots/screen-$mode.png"
+            sips -Z 1400 "shots/screen-$mode.png" >/dev/null
+            kill $PID
+            sleep 1
+          done
+          ls -la shots
+          cd shots
+          git init -q
+          git add .
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Screenshots for ${{ github.event.pull_request.head.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/screenshots/pr-${{ github.event.pull_request.number }}
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/mac-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The release may already exist when the tag was made from GitHub's "Draft a new release" page.
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" mac/dist/*.dmg --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" mac/dist/*.dmg --title "Hit My Limit for Mac ${GITHUB_REF_NAME#mac-v}" --prerelease --notes "Test build. Open the .dmg and drag Hit My Limit to Applications. It is not signed yet: on first launch, go to System Settings → Privacy & Security and click Open Anyway."
+          fi

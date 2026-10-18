@@ -50,6 +50,15 @@ hash and deleted the next day. The contributor id is random and hashed before it
 - Storage is Postgres (`DATABASE_URL` or `POSTGRES_URL`). Tables are created on first use; see `src/lib/db.ts`.
 - To remove a bad report: `update reports set hidden = true where id = ...`.
 
+## Mac menu bar app
+
+[`mac/`](mac/) is a menu bar app for macOS 13 and later. It shows how full your Claude Code and Codex limits are,
+how your latest limit hits compare with your earlier ones, and the change log. It notifies you when a lab changes
+its limits or gives out a free reset, and lets you share new limit hits with one click. You pick which providers it
+tracks. It runs the command-line tool (`hitmylimit status --json`) with a copy of Node.js inside the app, so it reads the same local logs
+and never reads logins, keys or browser cookies. It is built on GitHub Actions; pushing a `mac-v*` tag publishes a
+disk image to GitHub Releases. See [`mac/README.md`](mac/README.md).
+
 ## Develop
 
 ```sh
