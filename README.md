@@ -15,7 +15,8 @@ Covers Anthropic (Claude, Claude Code), OpenAI (ChatGPT, Codex) and Google (Gemi
 ## How entries get added
 
 1. Anyone suggests a change through the [issue form](https://github.com/tmeng53/hit-my-limit/issues/new?template=change.yml).
-2. A GitHub Action checks the source link and opens a pull request with the drafted entry.
+2. A GitHub Action checks the source link, builds the site with the drafted entry, and opens a pull request.
+   If the build fails, it comments on the issue instead.
    Sources from the labs or major press are marked confirmed; anything else is marked unconfirmed.
 3. A maintainer reviews the pull request. Merging it publishes the entry.
    Free limit resets are the exception: when the source is the lab's own site or official X account,

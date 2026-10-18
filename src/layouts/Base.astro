@@ -27,6 +27,12 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description ?? s.lead} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hit My Limit" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description ?? s.lead} />
+    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.site)} />
+    <meta name="twitter:card" content="summary" />
     <link rel="alternate" type="application/rss+xml" title="Hit My Limit" href={rss} />
     <link rel="alternate" hreflang="en" href={enHref} />
     <link rel="alternate" hreflang="zh-CN" href={zhHref} />
