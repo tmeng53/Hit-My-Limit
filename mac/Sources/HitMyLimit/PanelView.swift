@@ -184,18 +184,10 @@ struct PanelView: View {
                 return hits.filter { cal.isDate(date($0.hit), inSameDayAs: d) }
             }
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    SectionTitle("Limit hits, last 30 days")
+                HStack {
+                    SectionTitle("Limit hits, all tools, last 30 days")
                     Spacer()
-                    // How many per tool, in the tool's color, so the bars below read as one or the other.
-                    ForEach(Array(Set(hits.map(\.product))).sorted(), id: \.self) { p in
-                        let lab = hits.first { $0.product == p }?.lab
-                        HStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Look.lab(lab)).frame(width: 8, height: 8)
-                            Text("\(Options.products[p] ?? p) \(hits.filter { $0.product == p }.count)")
-                                .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
-                        }
-                    }
+                    Text("\(hits.count)").font(.system(size: 13, weight: .semibold)).monospacedDigit()
                 }
                 HStack(alignment: .bottom, spacing: 3) {
                     ForEach(0..<30, id: \.self) { i in
@@ -225,7 +217,9 @@ struct PanelView: View {
                 }
             }
             .onHover { if !$0 { hoverDay = nil } }
-            .padding(.top, 22)
+            .padding(.top, 16)
+            .overlay(alignment: .top) { Divider() }
+            .padding(.top, 16)
         }
     }
 
@@ -287,7 +281,9 @@ struct PanelView: View {
                     .padding(.horizontal, -8)
                 }
             }
-            .padding(.top, 22)
+            .padding(.top, 16)
+            .overlay(alignment: .top) { Divider() }
+            .padding(.top, 16)
         }
     }
 
