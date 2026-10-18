@@ -20,6 +20,8 @@ const nav = [
 ];
 const pageTitle = title ? `${title} · Hit My Limit` : `Hit My Limit · ${s.tagline}`;
 const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
+const abs = (href: string) => new URL(href, Astro.site).href;
+const canonical = abs(lang === 'zh' ? zhHref : enHref);
 ---
 <!doctype html>
 <html lang={lang === 'zh' ? 'zh-CN' : 'en'}>
@@ -32,11 +34,13 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     <meta property="og:site_name" content="Hit My Limit" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description ?? s.lead} />
-    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:url" content={canonical} />
     <meta name="twitter:card" content="summary" />
     <link rel="alternate" type="application/rss+xml" title="Hit My Limit" href={rss} />
-    <link rel="alternate" hreflang="en" href={enHref} />
-    <link rel="alternate" hreflang="zh-CN" href={zhHref} />
+    <link rel="alternate" hreflang="en" href={abs(enHref)} />
+    <link rel="alternate" hreflang="zh-CN" href={abs(zhHref)} />
+    <link rel="alternate" hreflang="x-default" href={abs(enHref)} />
     <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
