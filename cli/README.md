@@ -117,7 +117,7 @@ Reports from the login or the quick questions have no token counts, so `tokens`,
 
 ```
 hook on|off       Send automatically when Claude Code runs out, or stop
---source <how>    Skip straight to one check: login, logs or manual
+--source <how>    logs (default), login (live check, counts claude.ai and ChatGPT) or manual (3 questions)
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
 --days <n>        How far back to look (default 30)
 --work <kind>     coding, chat, research or other (default chat for chat apps, coding otherwise)

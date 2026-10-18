@@ -24,16 +24,16 @@ const HELP = `Usage: npx hitmylimit [options]
 Reports when you run out of a Claude, ChatGPT, Codex or Gemini usage limit.
 
 It reads your Claude Code and Codex logs, shows any limit you ran out of that
-hasn't been sent yet, and sends it to hitmylimit.com when you press Enter. If
-there's nothing in the logs, it can check live with your Claude Code / Codex
-login (which counts claude.ai, ChatGPT and cloud use) or ask 3 quick questions.
+hasn't been sent yet, and sends it to hitmylimit.com when you press Enter.
 
   hook on    Send a report automatically each time Claude Code stops on a usage
              limit, with a desktop notification. Asks first.
   hook off   Stop sending automatically.
 
 Options:
-  --source <how>    Skip straight to one check: login, logs or manual
+  --source <how>    logs (default), login (check live with your Claude Code /
+                    Codex login, counts claude.ai and ChatGPT too) or manual
+                    (3 quick questions, any app)
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
   --days <n>        How far back to look in the logs (default 30)
   --work <kind>     coding, chat, research or other (default chat for
@@ -50,7 +50,7 @@ Options:
   -v, --version     Show the version
 
 It reads ~/.claude/projects and ~/.codex/sessions. It reads your login and
-contacts Anthropic or OpenAI only after you say yes to the live check.
+contacts Anthropic or OpenAI only with --source login.
 `;
 
 const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
