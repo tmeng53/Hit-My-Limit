@@ -39,6 +39,9 @@ export async function readCodex(dirs, since) {
   const hits = [];
   // Limit events that couldn't be read; a sign the log format changed.
   const unread = [];
+  // Every real snapshot, from all sessions, for limit errors in a session that logged none of its own.
+  const snaps = [];
+  const orphans = [];
   for (const dir of dirs) {
     for (const file of await jsonlFiles(dir, since)) {
       let version = null;
@@ -77,7 +80,10 @@ export async function readCodex(dirs, since) {
           if (p.rate_limits && !early) {
             // Once a request is refused, Codex logs snapshots with empty windows; keep the last real one.
             const snap = snapshot(p.rate_limits, time);
-            if (snap.length) last = snap;
+            if (snap.length) {
+              last = snap;
+              snaps.push({ time, snap, plan: PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan });
+            }
             // Windows present but in a shape this tool doesn't know.
             else if (['primary', 'secondary'].some((k) => p.rate_limits[k])) unread.push({ time, version });
             plan = PLANS[String(p.rate_limits.plan_type ?? '').toLowerCase()] ?? plan;
@@ -87,13 +93,22 @@ export async function readCodex(dirs, since) {
           // "You've hit your usage limit" doesn't say which limit; use the fullest window from the last snapshot.
           const w = [...last].sort((a, b) => b.used - a.used)[0];
           if (w && w.used >= 90) hits.push({ time, ...w, plan, version, snap: last });
-          else unread.push({ time, version });
+          else orphans.push({ time, version });
         } else if ((p.type === 'error' || p.type === 'task_complete') && /\blimit\b/i.test(String(p.error?.message ?? p.message ?? ''))
           && !/rate limit|context|too long|output token/i.test(String(p.error?.message ?? p.message ?? ''))) {
           unread.push({ time, version });
         }
       });
     }
+  }
+  // A session that starts already out of quota logs the error before any snapshot. The account's limits are
+  // shared across sessions, so use the latest snapshot from any session in the 5 hours before.
+  snaps.sort((a, b) => a.time - b.time);
+  for (const o of orphans) {
+    const s = snaps.filter((x) => x.time <= o.time && o.time - x.time < 5 * 3600_000).pop();
+    const w = s && [...s.snap].sort((a, b) => b.used - a.used)[0];
+    if (w && w.used >= 90 && (!w.resetsAt || w.resetsAt > o.time)) hits.push({ time: o.time, ...w, plan: s.plan, version: o.version, snap: s.snap });
+    else unread.push(o);
   }
   usage.sort((a, b) => a.time - b.time);
   hits.sort((a, b) => a.time - b.time);

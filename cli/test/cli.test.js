@@ -155,6 +155,25 @@ test('Codex: finds a hit recorded as a refused turn after the last snapshot', as
   assert.equal(hits[0].start_hour, 0);
 });
 
+test('Codex: a new session that starts out of quota uses the snapshot from an earlier session', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const resetsAt = Date.parse('2026-10-04T05:00:00Z') / 1000;
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:40:00Z'), type: 'event_msg', payload: { type: 'token_count',
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 0, output_tokens: 50 } },
+      rate_limits: { plan_type: 'plus', primary: { used_percent: 99.0, window_minutes: 300, resets_at: resetsAt } } } },
+  ]));
+  writeFileSync(join(dir, 'rollout-b.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:50:00Z'), type: 'event_msg', payload: { type: 'error', message: "You've hit your usage limit. Try again later." } },
+  ]));
+  const data = await readCodex([dir], since);
+  const hits = codexHits(data);
+  assert.equal(data.unread.length, 0);
+  assert.equal(hits.length, 1);
+  assert.equal(new Date(hits[0].start).toISOString(), '2026-10-04T00:00:00.000Z');
+  assert.equal(hits[0].plan, 'plus');
+});
+
 test('Claude Code: reads "session limit" notices and the 12:20am reset format', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
   writeFileSync(join(dir, 'a.jsonl'), lines([
