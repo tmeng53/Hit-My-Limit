@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import pg from 'pg';
 import type { HomeData, PlanTrend } from './home';
 import { BIN_MINUTES, MIN_GROUP, RECENT_DAYS, WINDOWS, type Report } from './reports';
@@ -53,6 +53,20 @@ create table if not exists submit_counts (
   day date not null,
   n integer not null
 );
+-- Email alert sign-ups. Private: no page or API returns these rows. The token is used for unsubscribe links.
+create table if not exists subscribers (
+  email text primary key,
+  lang text not null,
+  token text not null unique,
+  created_at timestamptz not null default now(),
+  unsubscribed_at timestamptz
+);
+-- Change log entries already emailed, so an entry is never sent twice.
+create table if not exists alerts_sent (
+  entry text primary key,
+  recipients integer not null,
+  sent_at timestamptz not null default now()
+);
 `;
 
 let pool: pg.Pool | null = null;
@@ -62,7 +76,7 @@ export function dbConfigured() {
   return URL !== '';
 }
 
-async function db() {
+export async function db() {
   if (!pool) {
     pool = new pg.Pool({ connectionString: URL, max: 1 });
     ready = pool.query(SCHEMA).then(() => undefined);
@@ -81,10 +95,11 @@ export function sha(text: string, len = 16) {
 
 // Returns false once an address has sent PER_IP_PER_DAY reports today. The address is hashed with a secret
 // (the database URL) and the day, so stored keys can't be turned back into addresses.
-export async function allowSubmit(ip: string): Promise<boolean> {
+// `kind` keeps separate counts for other forms, such as email sign-ups.
+export async function allowSubmit(ip: string, kind = '', limit = PER_IP_PER_DAY): Promise<boolean> {
   const p = await db();
   const today = new Date().toISOString().slice(0, 10);
-  const key = sha(`${URL}|${today}|${ip}`, 32);
+  const key = sha(`${URL}|${today}|${kind}${ip}`, 32);
   await p.query('delete from submit_counts where day < current_date');
   const { rows } = await p.query(
     `insert into submit_counts (key, day, n) values ($1, current_date, 1)
@@ -92,7 +107,26 @@ export async function allowSubmit(ip: string): Promise<boolean> {
      returning n`,
     [key],
   );
-  return rows[0].n <= PER_IP_PER_DAY;
+  return rows[0].n <= limit;
+}
+
+// Adds an email to the alert list, or re-subscribes it. Says nothing about whether it was already there.
+export async function subscribe(email: string, lang: string): Promise<void> {
+  const p = await db();
+  await p.query(
+    `insert into subscribers (email, lang, token) values ($1, $2, $3)
+     on conflict (email) do update set lang = excluded.lang, unsubscribed_at = null`,
+    [email, lang, randomBytes(18).toString('base64url')],
+  );
+}
+
+// Returns the subscriber's language, or null if the token is unknown.
+export async function unsubscribe(token: string, confirm: boolean): Promise<string | null> {
+  const p = await db();
+  const { rows } = confirm
+    ? await p.query('update subscribers set unsubscribed_at = coalesce(unsubscribed_at, now()) where token = $1 returning lang', [token])
+    : await p.query('select lang from subscribers where token = $1', [token]);
+  return rows[0]?.lang ?? null;
 }
 
 // Inserts the report. Returns false if the same contributor already sent the same report.

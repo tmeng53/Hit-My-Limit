@@ -1,5 +1,5 @@
 ---
-import { BUTTONDOWN_USER, LABS, MARK, isoDate, summaryFor, t, titleFor, type Change, type Lang } from '../lib/site';
+import { LABS, MARK, isoDate, summaryFor, t, titleFor, type Change, type Lang } from '../lib/site';
 
 interface Props {
   lang: Lang;
@@ -22,13 +22,15 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
       <>{i > 0 && ' · '}<a href={`#${c.id}`}>{LABS[c.data.lab][lang]} <span class="ago" data-date={isoDate(c.data.date)}>{isoDate(c.data.date)}</span></a></>
     ))}
   </p>
-  <form action={`https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USER}`} method="post" target="_blank">
+  <form class="signup" action="/api/subscribe" method="post">
     <label for="email">{s.alertsLead}</label>
     <div>
-      <input id="email" type="email" name="email" required placeholder={s.emailPlaceholder} />
-      <input type="hidden" name="tag" value={lang} />
+      <input id="email" type="email" name="email" required autocomplete="email" placeholder={s.emailPlaceholder} />
+      <input type="hidden" name="lang" value={lang} />
+      <input class="trap" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
       <button type="submit">{s.subscribe}</button>
     </div>
+    <p class="note" role="status" hidden></p>
   </form>
 </section>
 
@@ -77,7 +79,34 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   </ol>
 </section>
 
-<script define:vars={{ dayAgo: s.dayAgo, daysAgo: s.daysAgo, today: s.today }}>
+<script define:vars={{ dayAgo: s.dayAgo, daysAgo: s.daysAgo, today: s.today, signupText: { ok: s.signupOk, invalid: s.signupInvalid, error: s.signupError } }}>
+  // Email sign-up: post in place and show the result under the form.
+  const signup = document.querySelector('.signup');
+  const note = signup.querySelector('.note');
+  const showSignup = (result) => {
+    note.textContent = signupText[result] ?? signupText.error;
+    note.hidden = false;
+    if (result === 'ok') signup.querySelector('div').hidden = true;
+  };
+  signup.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const button = signup.querySelector('button');
+    button.disabled = true;
+    try {
+      const res = await fetch(signup.action, { method: 'POST', body: new FormData(signup), headers: { accept: 'application/json' } });
+      showSignup((await res.json()).result);
+    } catch {
+      showSignup('error');
+    }
+    button.disabled = false;
+  });
+  // Without JavaScript the form posts normally and comes back with ?signup=<result>.
+  const fromQuery = new URLSearchParams(location.search).get('signup');
+  if (fromQuery) {
+    showSignup(fromQuery);
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+
   const buttons = document.querySelectorAll('[data-filter]');
   const items = document.querySelectorAll('.log li');
   for (const b of buttons) {
@@ -127,6 +156,10 @@ const latest = (Object.keys(LABS) as (keyof typeof LABS)[])
   input[type='email'] { flex: 1; min-width: 0; background: transparent; color: inherit; }
   input[type='email']:focus { outline: none; background: var(--hover); }
   form button { background: var(--fg); color: var(--bg); cursor: pointer; }
+  form button:disabled { opacity: 0.6; cursor: default; }
+  form div[hidden] { display: none; }
+  form .trap { position: absolute; left: -9999px; width: 1px; height: 1px; }
+  form .note { margin: 8px 0 0; font-size: var(--s-sm); }
 
   .rows { list-style: none; margin: 0; padding: 0; }
   .rows > li { border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }

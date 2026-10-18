@@ -5,8 +5,6 @@ export type Lang = 'en' | 'zh';
 
 export const REPO_URL = 'https://github.com/tmeng53/hit-my-limit';
 export const SUBMIT_URL = `${REPO_URL}/issues/new?template=change.yml`;
-// Buttondown newsletter username for email alerts.
-export const BUTTONDOWN_USER = 'hitmylimit';
 
 export const LABS = {
   anthropic: { en: 'Anthropic', zh: 'Anthropic' },
@@ -51,6 +49,14 @@ export const t = {
     daysAgo: 'days ago',
     today: 'today',
     alertsLead: 'Email me when a limit changes or gets reset',
+    signupOk: "Done. You'll get an email next time a limit changes.",
+    signupInvalid: "That email doesn't look right.",
+    signupError: 'Something went wrong. Try again in a bit.',
+    unsubTitle: 'Unsubscribe',
+    unsubAsk: 'Stop getting email alerts from hitmylimit?',
+    unsubButton: 'unsubscribe',
+    unsubDone: "You're unsubscribed. No more emails.",
+    unsubBad: "This link doesn't work anymore.",
     codeLicense: 'Code: MIT',
     navLog: 'changes',
     navLimits: 'limits',
@@ -93,6 +99,14 @@ export const t = {
     daysAgo: '天前',
     today: '今天',
     alertsLead: '额度变化或被重置时发邮件提醒我',
+    signupOk: '好了，下次额度有变化会发邮件给你。',
+    signupInvalid: '邮箱格式好像不对。',
+    signupError: '出了点问题，稍后再试。',
+    unsubTitle: '退订',
+    unsubAsk: '不再接收 hitmylimit 的邮件提醒？',
+    unsubButton: '退订',
+    unsubDone: '已退订，以后不会再收到邮件了。',
+    unsubBad: '这个链接已经失效了。',
     codeLicense: '代码：MIT',
     navLog: '变化',
     navLimits: '额度数据',
