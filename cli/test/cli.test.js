@@ -235,6 +235,8 @@ test('hit list shows tokens, cache share, models, plan and weekly use', async ()
   assert.match(text, /gpt-5-mini   █{5}░{15}   25%  500K/);
   assert.match(hitLines(c, 0, { sent: true }).join('\n'), /5-hour limit {2}\(sent to hitmylimit\)/);
   assert.match(text, /plan Plus \(from the logs\), weekly limit 40% used/);
+  const claude = { ...c, lab: 'anthropic', product: 'claude-code', plan: null, weekly_used: null };
+  assert.match(hitLines(claude, 0, { plans: { anthropic: 'max-5x' } }).join('\n'), /plan Max 5x \(you picked\)/);
 });
 
 test('limit notices that cannot be read are counted, rate-limit errors are not', async () => {

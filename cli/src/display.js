@@ -12,7 +12,7 @@ export const shortTokens = (n) =>
 
 const pct = (part, whole) => (whole ? Math.round((100 * part) / whole) : 0);
 
-export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
+export function hitLines(c, i, { sent = false, plans = {}, c: k = colors(false) } = {}) {
   const pad = '     ';
   const head = [
     String(i + 1).padStart(3),
@@ -45,7 +45,10 @@ export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
     lines.push(`${pad}${k.dim('model')} ${c.model}`);
   }
   const extra = [];
-  if (c.plan) extra.push(`plan ${PLANS[c.lab].find(([key]) => key === c.plan)?.[1] ?? c.plan} (from ${c.source === 'login' ? 'your login' : 'the logs'})`);
+  // Codex logs the plan; Claude Code doesn't, so the plan the person picked is shown instead.
+  const plan = c.plan ?? plans[c.lab];
+  const from = !c.plan ? 'you picked' : c.source === 'login' ? 'from your login' : 'from the logs';
+  if (plan) extra.push(`plan ${PLANS[c.lab].find(([key]) => key === plan)?.[1] ?? plan} (${from})`);
   if (c.weekly_used !== null && c.weekly_used !== undefined) extra.push(`weekly limit ${c.weekly_used}% used`);
   if (extra.length) lines.push(pad + k.dim(extra.join(', ')));
   return lines;

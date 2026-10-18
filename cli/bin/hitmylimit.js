@@ -129,7 +129,7 @@ async function main() {
     if (state.last_auto && !state.last_auto.shown && interactive) {
       const a = state.last_auto;
       console.log(`\nSent automatically when Claude Code ran out:\n`);
-      console.log(hitLines(a.hit, 0, { sent: true, c: color }).join('\n'));
+      console.log(hitLines(a.hit, 0, { sent: true, plans: state.plans, c: color }).join('\n'));
       if (a.summary) console.log(`\n${a.summary.line}.${a.summary.models ? ` ${a.summary.models}.` : ''}`);
       else if (a.comparison) console.log(`\n${comparisonLine(a.comparison)}`);
       a.shown = true;
@@ -169,7 +169,7 @@ async function main() {
         // Nothing new, but the past hits are still worth seeing.
         const past = [...found].sort((a, b) => b.hit - a.hit);
         console.log('\nNo new limit hits. Your recent ones:\n');
-        past.slice(0, 5).forEach((c, i) => console.log(`${hitLines(c, i, { sent: true, c: color }).join('\n')}\n`));
+        past.slice(0, 5).forEach((c, i) => console.log(`${hitLines(c, i, { sent: true, plans: state.plans, c: color }).join('\n')}\n`));
         if (past.length > 5) console.log(color.dim(`${past.length - 5} more: npx hitmylimit --all\n`));
       } else console.log(logsSeen.length ? `No limit hits in your ${logsSeen.join(' and ')} logs.` : 'No Claude Code or Codex logs on this computer.');
     }
@@ -183,7 +183,7 @@ async function main() {
     list.sort((a, b) => b.hit - a.hit);
     console.log();
     list.forEach((c, i) => {
-      console.log(hitLines(c, i, { sent: !isNew(c), c: color }).join('\n'));
+      console.log(hitLines(c, i, { sent: !isNew(c), plans: state.plans, c: color }).join('\n'));
       console.log();
     });
     if (note) console.log(`${note}\n`);
