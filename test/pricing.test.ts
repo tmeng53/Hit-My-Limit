@@ -17,8 +17,8 @@ test('prices each model in the breakdown at its own rates', () => {
 });
 
 test('falls back to totals priced as the main model', () => {
-  const usd = apiValue({ lab: 'openai', model: 'gpt-5.1-codex', models: null, ...none, tokens_input: 2_000_000, tokens_output: 1_000_000, tokens_cache_read: 4_000_000 });
-  assert.equal(usd, 2 * 1.25 + 10 + 4 * 0.125);
+  const usd = apiValue({ lab: 'openai', model: 'gpt-6.1-sol', models: null, ...none, tokens_input: 2_000_000, tokens_output: 1_000_000, tokens_cache_read: 4_000_000 });
+  assert.equal(usd, 2 * 2 + 10 + 4 * 0.1);
 });
 
 test('returns null without tokens or for labs without prices', () => {
@@ -27,7 +27,11 @@ test('returns null without tokens or for labs without prices', () => {
   assert.equal(priceFor('google', null), null);
 });
 
-test('unknown Claude models use the Sonnet price, mini Codex models the cheaper one', () => {
+test('matches model names to the right price', () => {
   assert.deepEqual(priceFor('anthropic', 'claude-next'), priceFor('anthropic', 'sonnet'));
-  assert.notDeepEqual(priceFor('openai', 'gpt-5-codex-mini'), priceFor('openai', 'gpt-5-codex'));
+  assert.equal(priceFor('openai', 'gpt-6-astra')!.output, 50);
+  assert.equal(priceFor('openai', 'gpt-6-luna')!.output, 0.5);
+  assert.equal(priceFor('openai', 'gpt-5.6-sol')!.output, 20);
+  assert.equal(priceFor('openai', 'gpt-5.3-codex')!.output, 14);
+  assert.equal(priceFor('openai', 'gpt-6-sol')!.output, 10);
 });

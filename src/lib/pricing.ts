@@ -15,22 +15,37 @@ interface Price {
   cache_write: number;
 }
 
-// Claude Code logs only the family (opus, sonnet, haiku), so each family uses its newest model's price.
+// Claude Code logs only the family (opus, sonnet, haiku), so each family uses its newest model's price:
+// Opus 5.5, Sonnet 5.5, Haiku 5.5 (prompts up to 100K tokens). Cache writes use the 5-minute rate.
+// Source: https://platform.claude.com/docs/en/about-claude/pricing (checked 2026-10-18)
 const CLAUDE: Record<string, Price> = {
   opus: { input: 4, output: 20, cache_read: 0.2, cache_write: 5 },
-  sonnet: { input: 2, output: 10, cache_read: 0.2, cache_write: 2.5 },
+  sonnet: { input: 2, output: 10, cache_read: 0.1, cache_write: 2.5 },
   haiku: { input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0.125 },
 };
-// Codex logs full model names; mini models get the cheaper price, everything else the main GPT price.
+// Codex logs full model names. OpenAI doesn't charge for cache writes.
+// Source: https://developers.openai.com/api/docs/pricing, Standard tier, short context (checked 2026-10-18)
 const OPENAI: Record<string, Price> = {
-  mini: { input: 0.25, output: 2, cache_read: 0.025, cache_write: 0 },
-  main: { input: 1.25, output: 10, cache_read: 0.125, cache_write: 0 },
+  astra: { input: 10, output: 50, cache_read: 1, cache_write: 0 }, // gpt-6-astra
+  sol: { input: 2, output: 10, cache_read: 0.1, cache_write: 0 }, // gpt-6.1-sol
+  luna: { input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0 }, // gpt-6-luna
+  'sol-5.6': { input: 4, output: 20, cache_read: 0.4, cache_write: 0 }, // gpt-5.6-sol
+  codex: { input: 1.75, output: 14, cache_read: 0.175, cache_write: 0 }, // gpt-5.3-codex
 };
+
+function openaiPrice(m: string): Price {
+  if (m.includes('astra')) return OPENAI.astra;
+  if (/luna|mini|nano/.test(m)) return OPENAI.luna;
+  if (m.includes('5.6')) return OPENAI['sol-5.6'];
+  if (m.startsWith('gpt-5') && m.includes('codex')) return OPENAI.codex;
+  // GPT-6 Sol and anything new or unknown.
+  return OPENAI.sol;
+}
 
 export function priceFor(lab: string, model: string | null): Price | null {
   const m = (model ?? '').toLowerCase();
   if (lab === 'anthropic') return CLAUDE[Object.keys(CLAUDE).find((f) => m.includes(f)) ?? 'sonnet'];
-  if (lab === 'openai') return m.includes('mini') ? OPENAI.mini : OPENAI.main;
+  if (lab === 'openai') return openaiPrice(m);
   return null;
 }
 
