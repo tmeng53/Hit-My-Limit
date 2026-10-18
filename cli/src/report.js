@@ -37,6 +37,6 @@ export async function send(api, report) {
 
 export function comparisonLine(c) {
   if (!c) return '';
-  if (c.percent === null) return `There are ${c.n} recent reports on this plan so far. A comparison shows up once there are 20.`;
+  if (c.percent === null) return `${c.n === 1 ? 'There is 1 recent report' : `There are ${c.n} recent reports`} on this plan so far. A comparison shows up once there are 20.`;
   return `You hit the limit sooner than ${c.percent}% of ${c.n} recent reports on the same plan${c.sameWork ? ' doing the same kind of work' : ''}.`;
 }

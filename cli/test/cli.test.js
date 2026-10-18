@@ -235,7 +235,7 @@ test('without a terminal, nothing is sent unless --yes is given', async () => {
   ]));
   const run = (args) => new Promise((resolve) => {
     execFile(process.execPath, [new URL('../bin/hitmylimit.js', import.meta.url).pathname, ...args], {
-      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
+      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', XDG_CONFIG_HOME: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
     }, (err, stdout) => resolve({ err, stdout }));
   });
   try {

@@ -20,6 +20,9 @@ export async function loadState(path) {
     plans: s.plans && typeof s.plans === 'object' ? s.plans : {},
     source: ['login', 'logs', 'manual'].includes(s.source) ? s.source : undefined,
     login_ok: s.login_ok === true,
+    hook: s.hook === true,
+    hook_offered: s.hook_offered === true,
+    last_auto: s.last_auto && typeof s.last_auto === 'object' ? s.last_auto : null,
   };
 }
 

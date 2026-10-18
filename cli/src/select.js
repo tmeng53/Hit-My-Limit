@@ -45,3 +45,30 @@ export function select(question, choices, start = 0, { input = process.stdin, ou
     draw();
   });
 }
+
+// One keypress: Enter picks the first key, any listed key picks itself, Ctrl+C or Esc cancels.
+// keys: [[key, label], ...], shown as "Enter send · p change plan · n cancel".
+export function keypress(question, keys, { input = process.stdin, output = process.stdout, c = colors(true) } = {}) {
+  return new Promise((resolve, reject) => {
+    const hint = keys.map(([k, label], i) => `${c.bold(i === 0 ? 'Enter' : k)} ${label}`).join(c.dim(' · '));
+    output.write(`${c.bold(question)}  ${hint} `);
+    const done = (err, value) => {
+      input.off('keypress', onKey);
+      input.setRawMode?.(false);
+      input.pause();
+      output.write('\n');
+      if (err) reject(err);
+      else resolve(value);
+    };
+    const onKey = (str, key = {}) => {
+      if ((key.ctrl && key.name === 'c') || key.name === 'escape') return done(new Error('Nothing was sent.'));
+      if (key.name === 'return' || key.name === 'enter') return done(null, keys[0][0]);
+      const hit = keys.find(([k]) => k === String(str ?? '').toLowerCase());
+      if (hit) done(null, hit[0]);
+    };
+    emitKeypressEvents(input);
+    input.setRawMode?.(true);
+    input.resume();
+    input.on('keypress', onKey);
+  });
+}
