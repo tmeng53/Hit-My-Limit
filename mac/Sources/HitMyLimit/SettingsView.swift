@@ -35,7 +35,14 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
             .padding(.top, 12)
+            Text("Version \(Self.version)").font(.system(size: 11)).foregroundStyle(.tertiary).textSelection(.enabled)
+                .padding(.top, 8)
         }
+    }
+
+    static var version: String {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
     }
 
     private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {

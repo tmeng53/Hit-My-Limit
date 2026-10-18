@@ -16,7 +16,8 @@ BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/HitMyL
 rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/cli"
 cp "$BIN" "$APP/Contents/MacOS/HitMyLimit"
-sed "s/VERSION/$VERSION/g" Info.plist > "$APP/Contents/Info.plist"
+BUILD="$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
+sed -e "s/VERSION/$VERSION/g" -e "s/BUILD/$BUILD/g" Info.plist > "$APP/Contents/Info.plist"
 cp -R ../cli/bin ../cli/src ../cli/package.json "$APP/Contents/Resources/cli/"
 cp Resources/MenuBarIcon-*Template*.png "$APP/Contents/Resources/"
 
