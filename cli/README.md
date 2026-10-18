@@ -22,8 +22,8 @@ Each hit shows how long the limit lasted, the token count and a bar per model:
 
 If there's nothing new, it lists your last few hits, marked "(sent to hitmylimit)".
 
-To report a limit the logs don't show, use `--source login` (asks Anthropic and OpenAI how full your limits are right
-now, including claude.ai, ChatGPT and cloud agents) or `--source manual` (3 quick questions, any app).
+To report a limit the logs don't show (claude.ai, ChatGPT, Gemini...), use `--source manual` to answer 3 quick
+questions.
 
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the
 tool tells you how your report compares.
@@ -53,22 +53,16 @@ but it writes how full your limits are into its own logs, so a normal run alread
 
 ## What it reads
 
-With the **live check**, it reads the login Claude Code saved (the macOS Keychain entry `Claude Code-credentials`, or
-`~/.claude/.credentials.json`) and Codex saved (`~/.codex/auth.json`), and sends it only to
-`api.anthropic.com/api/oauth/usage` and `chatgpt.com/backend-api/wham/usage`. It never sends the login to
-hitmylimit, prints it, saves it or refreshes it. If the login has expired, open Claude Code or Codex once and try again.
-These usage pages aren't documented by Anthropic or OpenAI, so they may change.
-
-It always reads:
+It reads only:
 
 - Claude Code: `~/.claude/projects/**/*.jsonl` (or `$CLAUDE_CONFIG_DIR/projects`)
 - Codex: `~/.codex/sessions/**/*.jsonl` (or `$CODEX_HOME/sessions`)
 
 From those files it uses timestamps, token counts, model names, Codex's rate-limit percentages, and the text of the
-"limit reached" notices. Until you say yes to the live check, it never reads login files and never contacts Anthropic or OpenAI.
+"limit reached" notices. It never reads login files or contacts Anthropic or OpenAI.
 It never sends prompts, code, file names or paths.
 
-Reports from the login or the quick questions have no token counts, so `tokens`, `models` and `requests` are null.
+Reports from the quick questions have no token counts, so `tokens`, `models` and `requests` are null.
 
 ## What it sends
 
@@ -87,7 +81,7 @@ Reports from the login or the quick questions have no token counts, so `tokens`,
   },
   "work": "coding",
   "account": "own",
-  "felt": "sooner",
+  "felt": null,
   "tokens": { "input": 30, "output": 41000, "cache_read": 3900000, "cache_write": 260000, "total": 4201030 },
   "requests": 412,
   "start_hour": 14,
@@ -117,7 +111,7 @@ Reports from the login or the quick questions have no token counts, so `tokens`,
 
 ```
 hook on|off       Send automatically when Claude Code runs out, or stop
---source <how>    logs (default), login (live check, counts claude.ai and ChatGPT) or manual (3 questions)
+--source manual   Answer 3 quick questions, for a limit the logs don't show
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
 --show            Print the exact data before asking to send
 --yes             Send without asking (needed to send when not run in a terminal)

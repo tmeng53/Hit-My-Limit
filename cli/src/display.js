@@ -47,7 +47,7 @@ export function hitLines(c, i, { sent = false, plans = {}, c: k = colors(false) 
   const extra = [];
   // Codex logs the plan; Claude Code doesn't, so the plan the person picked is shown instead.
   const plan = c.plan ?? plans[c.lab];
-  const from = !c.plan ? 'you picked' : c.source === 'login' ? 'from your login' : 'from the logs';
+  const from = c.plan ? 'from the logs' : 'you picked';
   if (plan) extra.push(`plan ${PLANS[c.lab].find(([key]) => key === plan)?.[1] ?? plan} (${from})`);
   if (c.weekly_used !== null && c.weekly_used !== undefined) extra.push(`weekly limit ${c.weekly_used}% used`);
   if (extra.length) lines.push(pad + k.dim(extra.join(', ')));
