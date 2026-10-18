@@ -1,4 +1,5 @@
 ---
+import Analytics from '@vercel/analytics/astro';
 import { REPO_URL, SUBMIT_URL, t, type Lang } from '../lib/site';
 
 interface Props {
@@ -41,6 +42,7 @@ const rss = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <Analytics />
   </head>
   <body>
     <header>
