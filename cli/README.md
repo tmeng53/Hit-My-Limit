@@ -118,7 +118,7 @@ hook on|off       Send automatically when Claude Code runs out, or stop
 --pick <n>        Send only this hit, as numbered with --all
 --show            Print the exact data before asking to send
 --yes             Send without asking (needed to send when not run in a terminal)
---dry-run         Print the exact data and stop
+--dry-run         Go through everything but send nothing
 ```
 
 Not affiliated with Anthropic or OpenAI. MIT license.

@@ -44,7 +44,7 @@ Options:
   --pick <n>        Send only this hit, as numbered with --all
   --show            Print the exact data before asking to send
   --yes             Send without asking. Needed to send when not run in a terminal
-  --dry-run         Print the exact data and stop
+  --dry-run         Go through everything but send nothing
   --api <url>       Send to another server (default https://hitmylimit.com/api/reports)
   -h, --help        Show this help
   -v, --version     Show the version
@@ -232,10 +232,10 @@ async function main() {
       console.log('\nclient_id is a random id made on this computer. It is hashed before it is stored.\n');
     };
 
-    if (o['dry-run'] || o.show || !interactive) showData();
+    if (o.show) showData();
     if (o['dry-run']) {
       await save();
-      return console.log('Dry run: nothing was sent.');
+      return console.log(`Dry run: nothing was sent.${o.show ? '' : ' Add --show to see the exact data.'}`);
     }
     // Without a terminal there is no one to confirm, so sending needs --yes.
     if (!interactive && !o.yes) return console.log('Nothing was sent. Run with --yes to send without a prompt.');
