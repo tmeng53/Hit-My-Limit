@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import pg from 'pg';
 import type { HomeData, PlanTrend } from './home';
 import { BIN_MINUTES, MIN_GROUP, RECENT_DAYS, WINDOWS, type Report } from './reports';
@@ -53,19 +53,11 @@ create table if not exists submit_counts (
   day date not null,
   n integer not null
 );
--- Email alert sign-ups. Private: no page or API returns these rows. The token is used for unsubscribe links.
+-- Email alert sign-ups, kept as our own copy of the Resend list. Private: no page or API returns these rows.
 create table if not exists subscribers (
   email text primary key,
   lang text not null,
-  token text not null unique,
-  created_at timestamptz not null default now(),
-  unsubscribed_at timestamptz
-);
--- Change log entries already emailed, so an entry is never sent twice.
-create table if not exists alerts_sent (
-  entry text primary key,
-  recipients integer not null,
-  sent_at timestamptz not null default now()
+  created_at timestamptz not null default now()
 );
 `;
 
@@ -76,7 +68,7 @@ export function dbConfigured() {
   return URL !== '';
 }
 
-export async function db() {
+async function db() {
   if (!pool) {
     pool = new pg.Pool({ connectionString: URL, max: 1 });
     ready = pool.query(SCHEMA).then(() => undefined);
@@ -110,23 +102,13 @@ export async function allowSubmit(ip: string, kind = '', limit = PER_IP_PER_DAY)
   return rows[0].n <= limit;
 }
 
-// Adds an email to the alert list, or re-subscribes it. Says nothing about whether it was already there.
+// Saves an alert sign-up, or updates its language if the address is already there.
 export async function subscribe(email: string, lang: string): Promise<void> {
   const p = await db();
   await p.query(
-    `insert into subscribers (email, lang, token) values ($1, $2, $3)
-     on conflict (email) do update set lang = excluded.lang, unsubscribed_at = null`,
-    [email, lang, randomBytes(18).toString('base64url')],
+    'insert into subscribers (email, lang) values ($1, $2) on conflict (email) do update set lang = excluded.lang',
+    [email, lang],
   );
-}
-
-// Returns the subscriber's language, or null if the token is unknown.
-export async function unsubscribe(token: string, confirm: boolean): Promise<string | null> {
-  const p = await db();
-  const { rows } = confirm
-    ? await p.query('update subscribers set unsubscribed_at = coalesce(unsubscribed_at, now()) where token = $1 returning lang', [token])
-    : await p.query('select lang from subscribers where token = $1', [token]);
-  return rows[0]?.lang ?? null;
 }
 
 // Inserts the report. Returns false if the same contributor already sent the same report.

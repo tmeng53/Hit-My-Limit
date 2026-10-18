@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { allowSubmit, dbConfigured, subscribe } from '../../lib/db';
 import { parseEmail } from '../../lib/email';
+import { addToList, resendConfigured } from '../../lib/resend';
 
 export const prerender = false;
 
@@ -27,6 +28,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     const ip = request.headers.get('x-real-ip') || clientAddress || 'unknown';
     if (!(await allowSubmit(ip, 'signup:', SIGNUPS_PER_IP_PER_DAY))) return reply(429, 'error');
     await subscribe(email, lang);
+    if (resendConfigured()) await addToList(email, lang);
   } catch {
     return reply(500, 'error');
   }

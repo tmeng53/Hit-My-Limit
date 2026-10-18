@@ -53,20 +53,14 @@ hash and deleted the next day. The contributor id is random and hashed before it
 
 ## Email alerts
 
-The form on `/changes` posts to `POST /api/subscribe`, which stores the address and the page language in the
-`subscribers` table. Addresses are private: no page, feed or API returns them, and they are used only to send these
-alerts. Sign-ups are limited to 5 a day per IP address (stored the same way as for reports).
+The form on `/changes` posts to `POST /api/subscribe`. The address and page language are saved in the
+`subscribers` table and added to a [Resend](https://resend.com) contact list, one segment per language
+(`src/lib/resend.ts`). Addresses are private: no page, feed or API returns them, and they are used only for these
+alerts. Sign-ups are limited to 5 a day per IP address, stored the same way as for reports.
 
-Alerts are sent by hand, one change log entry at a time, through [Resend](https://resend.com):
-
-- Run the **Email alert** workflow from the Actions tab with the entry's file path. Unticked, it is a dry run that
-  prints the subscriber count and the email. Ticked, it sends, and records the entry so it is never sent twice.
-  Fill in "test_to" to send only to that address, in both languages, without recording the entry.
-- It needs the `DATABASE_URL` and `RESEND_API_KEY` repository secrets and a `MAIL_FROM` repository variable,
-  e.g. `hitmylimit <alerts@hitmylimit.com>`, on a domain verified in Resend.
-- Locally: `node scripts/send-alert.mjs src/content/changes/<entry>.md [--send]` with the same environment variables.
-
-Every email has an unsubscribe link to `/unsubscribe` and one-click unsubscribe headers for mail apps.
+Alerts are sent by a maintainer as Resend broadcasts from `mail.hitmylimit.com`, and Resend handles unsubscribe
+links. The site needs `RESEND_API_KEY` (full access, since it adds contacts); without it, sign-ups are only saved
+to the database.
 
 ## Develop
 
