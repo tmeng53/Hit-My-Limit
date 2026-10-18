@@ -13,7 +13,7 @@ import { colors, hitLines, unreadNote } from '../src/display.js';
 import { DAY, duration } from '../src/time.js';
 import { APPS, askText, manualHit, parsePast, parseWhen, windowsFor } from '../src/manual.js';
 import { claudeLogin, claudeUsage, codexLogin, codexUsage, usageHits } from '../src/usage.js';
-import { hookSummary } from '../src/summary.js';
+import { hookSummary, unusual } from '../src/summary.js';
 import { addHook, claudeSettingsPath, hasHook, installCopy, notify, readSettings, removeHook, writeSettings } from '../src/hook.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -201,7 +201,17 @@ async function main() {
 
     // Codex logs the plan; the rest use the remembered plan, asked the first time.
     const plans = {};
+    const remembered = { ...state.plans };
     for (const lab of new Set(chosen.filter((c) => !c.plan).map((c) => c.lab))) plans[lab] = await askPlan(lab);
+    // Claude doesn't log the plan, so a hit far off the usual is the only sign it changed. Ask once.
+    const odd = plans.anthropic && remembered.anthropic && interactive && o.plan === undefined
+      && chosen.map((c) => c.lab === 'anthropic' && unusual(c, found)).find(Boolean);
+    if (odd) {
+      const name = `Claude ${planName('anthropic', plans.anthropic)}`;
+      const a = await key(`\nThis one used ${odd === 'more' ? 'over twice' : 'under half'} your usual before the limit. Still on ${name}?`,
+        [['y', 'yes'], ['n', 'change plan']]);
+      if (a === 'n') plans.anthropic = await askPlan('anthropic', true);
+    }
     const work = choose(WORK, o.work, null);
     const account = choose(ACCOUNTS, o.account, 'own');
     const felt = choose(FELT, o.felt, null);

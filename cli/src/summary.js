@@ -47,3 +47,16 @@ export function hookSummary(hit, plan, comparison, hits) {
     : ownHistory(hit, hits);
   return { title, line, models: modelMix(hit.models) };
 }
+
+// Whether a hit is far off the person's usual for that limit (half or double the median of their other hits), a
+// hint that their plan changed. Tokens when both sides have them, else time to the limit.
+export function unusual(hit, hits) {
+  const others = hits.filter((h) => h !== hit && h.lab === hit.lab && h.window === hit.window
+    && Math.abs(h.start - hit.start) > 30 * 60_000);
+  const size = (h) => (hit.tokens?.total && h.tokens?.total ? h.tokens.total : hit.tokens?.total ? null : minutes(h));
+  const values = others.map(size).filter((v) => v > 0).sort((a, b) => a - b);
+  if (values.length < 2) return null;
+  const median = values[Math.floor(values.length / 2)];
+  const ratio = size(hit) / median;
+  return ratio >= 2 ? 'more' : ratio <= 0.5 ? 'less' : null;
+}

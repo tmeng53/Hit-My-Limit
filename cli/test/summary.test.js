@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hookSummary, modelMix, ownHistory } from '../src/summary.js';
+import { hookSummary, modelMix, ownHistory, unusual } from '../src/summary.js';
 
 const hit = (day, mins, extra = {}) => {
   const start = new Date(2026, 9, day, 9).getTime();
@@ -27,4 +27,19 @@ test('hookSummary uses the comparison once there is one, else the own history', 
   const s = hookSummary(now, 'pro', { percent: 62, n: 40 }, [now]);
   assert.deepEqual(s, { title: 'Claude Pro: 5-hour limit out after 3h 15m', line: 'Sooner than 62% of Pro reports', models: 'Opus 78% · Sonnet 22%' });
   assert.equal(hookSummary(now, 'pro', { percent: null, n: 3 }, [now]).line, 'First time this week');
+});
+
+test('unusual flags a hit far off the usual for that limit, a hint the plan changed', () => {
+  const t = (n) => ({ tokens: { total: n } });
+  const past = [hit(10, 180, t(4e6)), hit(11, 200, t(5e6)), hit(12, 190, t(4.5e6))];
+  const big = hit(14, 300, t(11e6));
+  const small = hit(14, 60, t(1.5e6));
+  const usual = hit(14, 190, t(5e6));
+  assert.equal(unusual(big, [...past, big]), 'more');
+  assert.equal(unusual(small, [...past, small]), 'less');
+  assert.equal(unusual(usual, [...past, usual]), null);
+  // Too little history to tell.
+  assert.equal(unusual(big, [past[0], big]), null);
+  // Without tokens, time to the limit is used.
+  assert.equal(unusual(hit(14, 400), [hit(10, 180), hit(11, 190), hit(14, 400)]), 'more');
 });
