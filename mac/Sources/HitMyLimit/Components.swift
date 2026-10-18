@@ -156,3 +156,8 @@ struct InkButtonStyle: ButtonStyle {
 extension View {
     func inkButton() -> some View { buttonStyle(InkButtonStyle()) }
 }
+
+// A section line that still shows on the panel's translucent material, where Divider all but disappears.
+struct Hairline: View {
+    var body: some View { Rectangle().fill(.primary.opacity(0.12)).frame(height: 1) }
+}

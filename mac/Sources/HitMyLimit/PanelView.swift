@@ -40,7 +40,7 @@ struct PanelView: View {
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
                 ForEach(list.indices, id: \.self) { i in
-                    if i > 0 { Divider().padding(.vertical, 16) }
+                    if i > 0 { Hairline().padding(.vertical, 16) }
                     list[i].view
                 }
                 hitStrip(s)
@@ -218,7 +218,7 @@ struct PanelView: View {
             }
             .onHover { if !$0 { hoverDay = nil } }
             .padding(.top, 16)
-            .overlay(alignment: .top) { Divider() }
+            .overlay(alignment: .top) { Hairline() }
             .padding(.top, 16)
         }
     }
@@ -282,7 +282,7 @@ struct PanelView: View {
                 }
             }
             .padding(.top, 16)
-            .overlay(alignment: .top) { Divider() }
+            .overlay(alignment: .top) { Hairline() }
             .padding(.top, 16)
         }
     }
@@ -291,7 +291,7 @@ struct PanelView: View {
     private var footer: some View {
         let n = model.unsent.count
         return VStack(spacing: 0) {
-            Divider().padding(.top, 14)
+            Hairline().padding(.top, 14)
             HStack(spacing: 10) {
                 Button { Links.open(Links.site) } label: {
                     HStack(spacing: 3) {
