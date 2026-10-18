@@ -42,7 +42,7 @@ export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
     lines.push(`${pad}${k.dim('model')} ${c.model}`);
   }
   const extra = [];
-  if (c.plan) extra.push(`plan ${PLANS[c.lab].find(([key]) => key === c.plan)?.[1] ?? c.plan} (from the logs)`);
+  if (c.plan) extra.push(`plan ${PLANS[c.lab].find(([key]) => key === c.plan)?.[1] ?? c.plan} (from ${c.source === 'login' ? 'your login' : 'the logs'})`);
   if (c.weekly_used !== null && c.weekly_used !== undefined) extra.push(`weekly limit ${c.weekly_used}% used`);
   if (extra.length) lines.push(pad + k.dim(extra.join(', ')));
   return lines;

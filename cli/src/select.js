@@ -19,7 +19,7 @@ export function select(question, choices, start = 0, { input = process.stdin, ou
       input.pause();
       // Leave one line behind: the question and the answer.
       output.write(`\x1b[${drawn}A\x1b[0J`);
-      if (!err) output.write(`${c.bold(question)} ${choices[at][1]}\n`);
+      if (!err) output.write(`${c.bold(question)} ${choices[at][1].split(/\s{3,}/)[0]}\n`);
       if (err) reject(err);
       else resolve(value);
     };

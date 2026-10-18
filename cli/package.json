@@ -1,7 +1,7 @@
 {
   "name": "hitmylimit",
-  "version": "0.1.0",
-  "description": "Share when you hit an AI usage limit, from your local Claude Code and Codex logs",
+  "version": "0.2.0",
+  "description": "Share when you hit an AI usage limit on Claude, ChatGPT, Codex or Gemini",
   "license": "MIT",
   "type": "module",
   "bin": {

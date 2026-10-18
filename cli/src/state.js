@@ -18,6 +18,8 @@ export async function loadState(path) {
     client_id: typeof s.client_id === 'string' ? s.client_id : randomBytes(16).toString('hex'),
     sent: Array.isArray(s.sent) ? s.sent : [],
     plans: s.plans && typeof s.plans === 'object' ? s.plans : {},
+    source: ['login', 'logs', 'manual'].includes(s.source) ? s.source : undefined,
+    login_ok: s.login_ok === true,
   };
 }
 

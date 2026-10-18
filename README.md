@@ -34,7 +34,8 @@ Each entry is one Markdown file in `src/content/changes/`, frontmatter only. The
 ## Usage reports
 
 People share when they hit a limit through the form at `/share` or the command-line tool in [`cli/`](cli/)
-(`npx hitmylimit`, reads local Claude Code and Codex logs). `/limits` shows medians per plan and limit over the
+(`npx hitmylimit`, which checks live usage with your Claude Code or Codex login, reads local logs, or asks three
+quick questions, whichever you pick). `/limits` shows medians per plan and limit over the
 last 30 days, once a group has 20 reports. Reports from shared and resold accounts are shown separately.
 
 A report holds lab, product, plan, which limit, the date, minutes from window start to the limit (rounded to 5),

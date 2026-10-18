@@ -8,20 +8,34 @@ import { buildReport, comparisonLine, send } from '../src/report.js';
 import { select } from '../src/select.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
 import { colors, hitLines, unreadNote } from '../src/display.js';
-import { DAY } from '../src/time.js';
+import { DAY, duration } from '../src/time.js';
+import { APPS, askText, manualHit, parsePast, parseWhen, windowsFor } from '../src/manual.js';
+import { claudeLogin, claudeUsage, codexLogin, codexUsage, usageHits } from '../src/usage.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const HELP = `Usage: npx hitmylimit [options]
 
-Finds the times you hit a usage limit in your local Claude Code and Codex logs,
-shows the reports it would send, and sends them to hitmylimit.com if you agree.
+Reports when you run out of a Claude, ChatGPT, Codex or Gemini usage limit. It
+starts by asking how to check:
+
+  login   Use the login Claude Code and Codex saved on this computer to ask
+          Anthropic and OpenAI how full your limits are right now. Counts
+          claude.ai, ChatGPT and cloud use too. The login only goes to them.
+  logs    Read Claude Code and Codex logs on this computer. Misses anything
+          used in a browser, an app or the cloud.
+  manual  Answer 3 quick questions. Works for any app.
+
+It shows the exact reports and sends them to hitmylimit.com only if you agree.
 
 Options:
+  --source <how>    login, logs or manual (asked when run in a terminal; default
+                    logs otherwise)
   --days <n>        How far back to look (default 30)
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (used where the logs
                     have no plan)
-  --work <kind>     coding, chat, research or other (default coding)
+  --work <kind>     coding, chat, research or other (default chat for
+                    claude.ai, ChatGPT and Gemini, coding otherwise)
   --account <type>  own, shared or reseller (default own)
   --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
   --pick <n>        Share only this hit, as numbered in the list (default: all not sent yet)
@@ -32,14 +46,15 @@ Options:
   -h, --help        Show this help
   -v, --version     Show the version
 
-It reads only ~/.claude/projects and ~/.codex/sessions. It never reads login
-or credential files and never contacts Anthropic or OpenAI.
+Without --source login it reads only ~/.claude/projects and ~/.codex/sessions,
+never your login, and never contacts Anthropic or OpenAI.
 `;
 
 async function main() {
   const { values: o } = parseArgs({
     options: {
       days: { type: 'string', default: '30' },
+      source: { type: 'string' },
       plan: { type: 'string' },
       work: { type: 'string' },
       account: { type: 'string' },
@@ -61,6 +76,31 @@ async function main() {
   const color = colors(process.stdout.isTTY && !process.env.NO_COLOR);
   const menu = (question, choices, start) => select(question, choices, start, { c: color });
 
+  // The three questions for a limit that left no logs here.
+  const quickQuestions = async () => {
+    const product = await menu('\nWhich app?', APPS.map(([k, label]) => [k, label]), 0);
+    const lab = APPS.find(([k]) => k === product)[2];
+    const window = await menu('Which limit ran out?', windowsFor(lab), 0);
+    const now = new Date();
+    let hit = now;
+    if ((await menu('When?', [['now', 'Just now'], ['earlier', 'Earlier']], 0)) === 'earlier') {
+      for (;;) {
+        hit = parsePast(await askText('About when? (e.g. 2:30pm, 40m ago)'), now);
+        if (hit) break;
+        console.log('Try a time like 2:30pm or 40m ago.');
+      }
+    }
+    for (;;) {
+      const text = await askText('When does it reset? Type a time (3pm, Thu 9am, in 2h) or paste the limit message:');
+      const resets = parseWhen(text, hit);
+      const h = resets && manualHit({ product, lab, window, plan: null, hit, resets });
+      if (h) return h;
+      console.log(resets
+        ? `That's ${duration((resets - hit) / 60_000)} after it ran out, which doesn't fit a ${windowsFor(lab).find(([k]) => k === window)[1]}. Check the time.`
+        : "Couldn't read a time from that. Try 3pm, Thu 9am or in 2h.");
+    }
+  };
+
   const ask = async (question, choices, fallback, preset) => {
     if (preset !== undefined) {
       if (choices.some(([k]) => k === preset)) return preset;
@@ -71,28 +111,116 @@ async function main() {
     return menu(question, choices, def);
   };
 
+  const SOURCES = [
+    ['login', 'Use my Claude Code / Codex login   live usage, counts claude.ai and cloud use'],
+    ['logs', 'Local logs only                    misses browser, app and cloud use'],
+    ['manual', "I'll tell you                      3 quick questions, any app"],
+  ];
+  const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+
   try {
-    console.log(`hitmylimit ${version}`);
-    console.log(`Reading Claude Code and Codex logs from the last ${days} days...`);
-    const [claude, codex] = await Promise.all([readClaude(claudeDirs(), since), readCodex(codexDirs(), since)]);
+    console.log(color.bold(`hitmylimit ${version}`));
     const statePathname = statePath();
     const state = await loadState(statePathname);
-    const found = [...claudeHits(claude), ...codexHits(codex)].sort((a, b) => b.hit - a.hit);
-    const note = unreadNote([['Claude Code', claude.unread], ['Codex', codex.unread]], color);
 
-    if (!found.length) {
-      const seen = [claude.usage.length && 'Claude Code', codex.usage.length && 'Codex'].filter(Boolean);
-      console.log(
-        seen.length
-          ? `\nNo limit hits found in your ${seen.join(' and ')} logs from the last ${days} days.`
-          : '\nNo Claude Code or Codex logs found on this computer.',
-      );
-      if (note) console.log(`\n${note}`);
-      console.log('\nYou can still share a limit hit by hand at https://hitmylimit.com/share');
-      return;
+    let source = o.source;
+    if (source !== undefined && !SOURCES.some(([k]) => k === source)) throw new Error('--source must be login, logs or manual');
+    if (source === undefined) {
+      source = interactive ? await menu('\nHow should we check your limits?', SOURCES, Math.max(0, SOURCES.findIndex(([k]) => k === state.source))) : 'logs';
+    }
+    if (source === 'manual' && !interactive) throw new Error('--source manual needs a terminal to answer the questions');
+    // Reading the login is asked for once, in plain words, before it happens. --source login counts as asking.
+    if (source === 'login' && interactive && !state.login_ok && o.source === undefined) {
+      console.log(color.dim([
+        '',
+        'This reads the login Claude Code and Codex saved on this computer and uses it',
+        'only to ask Anthropic and OpenAI how full your limits are. The login is never',
+        'sent to hitmylimit, printed or saved. On a Mac, the Keychain may ask first.',
+      ].join('\n')));
+      const ok = await menu('Go ahead?', [['yes', 'Yes, check my usage'], ['logs', 'No, use local logs instead']], 0);
+      if (ok === 'yes') state.login_ok = true;
+      else source = 'logs';
+    }
+    state.source = source;
+
+    const found = [];
+    let note = null;
+    let live = [];
+    if (source === 'login') {
+      const [cl, cx] = await Promise.all([claudeLogin(), codexLogin()]);
+      if (!cl && !cx) console.log('\nNo Claude Code or Codex login found on this computer. Checking local logs instead.');
+      const checks = [cl && ['Claude', () => claudeUsage(cl)], cx && ['ChatGPT / Codex', () => codexUsage(cx)]].filter(Boolean);
+      for (const [name, check] of checks) {
+        try {
+          live.push(await check());
+        } catch (e) {
+          const why = e.message === 'login expired'
+            ? `login expired; open ${name === 'Claude' ? 'Claude Code' : 'Codex'} once and run this again`
+            : e.message;
+          console.log(`\n${name}: couldn't check usage (${why}).`);
+        }
+      }
+      for (const u of live) {
+        console.log(`\n${color.bold(u.name)}${u.plan ? color.dim(`  ${PLANS[u.lab].find(([k]) => k === u.plan)?.[1] ?? u.plan}`) : ''}`);
+        for (const w of u.windows) console.log(usageLine(w, color));
+      }
+    }
+    if (source === 'login' || source === 'logs') {
+      console.log(color.dim(`\nReading Claude Code and Codex logs from the last ${days} days...`));
+      const [claude, codex] = await Promise.all([readClaude(claudeDirs(), since), readCodex(codexDirs(), since)]);
+      found.push(...claudeHits(claude), ...codexHits(codex));
+      note = unreadNote([['Claude Code', claude.unread], ['Codex', codex.unread]], color);
+      if (!found.length && source === 'logs') {
+        const seen = [claude.usage.length && 'Claude Code', codex.usage.length && 'Codex'].filter(Boolean);
+        console.log(seen.length ? `No limit hits in your ${seen.join(' and ')} logs from the last ${days} days.` : 'No Claude Code or Codex logs on this computer.');
+      }
     }
 
-    console.log(`\nLimit hits found: ${found.length}\n`);
+    // A full window from the live check. The logs may already have the same hit, with token counts.
+    const now = Date.now();
+    for (const u of live) {
+      for (const h of usageHits(u, now)) {
+        if (found.some((f) => f.lab === h.lab && f.window === h.window && Math.abs(f.start - h.start) < 15 * 60_000)) continue;
+        if (state.sent.includes(hitKey(h))) {
+          found.push(h);
+          continue;
+        }
+        if (interactive) {
+          const when = await menu(`\nYour ${u.name} ${h.window === '5h' ? '5-hour' : 'weekly'} limit is used up. When did it run out?`, [['now', 'Just now'], ['earlier', 'Earlier']], 0);
+          if (when === 'earlier') {
+            for (;;) {
+              const t = parsePast(await askText('About when? (e.g. 2:30pm, 40m ago)'), new Date(now));
+              if (t && t.getTime() > h.start) {
+                h.hit = t.getTime();
+                break;
+              }
+              console.log(color.dim(`That doesn't fit this window, which started ${new Date(h.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Try again.`));
+            }
+          }
+        }
+        found.push(h);
+      }
+    }
+
+    if (source === 'manual' || (!found.length && interactive)) {
+      if (source !== 'manual') {
+        console.log(source === 'login' && live.length
+          ? '\nNothing is used up right now. Run npx hitmylimit again when you run out.'
+          : '');
+        const more = await menu('Report a limit from another app (claude.ai, ChatGPT, Gemini...)?', [['no', 'No, done'], ['yes', 'Yes, 3 quick questions']], 0);
+        if (more === 'no') return saveState(statePathname, state);
+      }
+      found.push(await quickQuestions());
+    }
+
+    if (!found.length) {
+      if (note) console.log(`\n${note}`);
+      console.log('\nYou can also share a limit hit by hand at https://hitmylimit.com/share');
+      return saveState(statePathname, state);
+    }
+
+    found.sort((a, b) => b.hit - a.hit);
+    console.log(`\nLimit hits: ${found.length}\n`);
     found.forEach((c, i) => {
       console.log(hitLines(c, i, { sent: state.sent.includes(hitKey(c)), c: color }).join('\n'));
       console.log();
@@ -107,7 +235,10 @@ async function main() {
       chosen = [c];
     } else {
       chosen = found.filter((c) => !state.sent.includes(hitKey(c)));
-      if (!chosen.length) return console.log('\nAll of these were already sent. Use --pick to send one again.');
+      if (!chosen.length) {
+        await saveState(statePathname, state);
+        return console.log('\nAll of these were already sent. Use --pick to send one again.');
+      }
     }
 
     // The plan Codex logged at the time of a hit is used as is. For the others the plan is asked once per lab;
@@ -117,7 +248,7 @@ async function main() {
       if (!interactive && !o.plan) throw new Error('Pass --plan with the plan you were on when you hit the limit');
       const n = chosen.filter((c) => c.lab === lab).length;
       plans[lab] = await ask(
-        `Your ${lab === 'anthropic' ? 'Claude' : 'ChatGPT'} plan when you hit ${n === 1 ? 'this limit' : 'these limits'}:`,
+        `Your ${LAB_NAME[lab]} plan when you hit ${n === 1 ? 'this limit' : 'these limits'}:`,
         PLANS[lab],
         state.plans[lab],
         o.plan,
@@ -129,7 +260,9 @@ async function main() {
       if (choices.some(([k]) => k === value)) return value;
       throw new Error(`"${value}" is not one of: ${choices.map(([k]) => k).join(', ')}`);
     };
-    const work = option(WORK, o.work, 'coding');
+    // Chat apps default to chat, coding tools to coding.
+    const work = option(WORK, o.work, null);
+    const APP_PRODUCTS = ['claude-app', 'chatgpt', 'gemini-app'];
     const account = option(ACCOUNTS, o.account, 'own');
     // One optional keystroke, asked once for all the hits being sent.
     let felt = option(FELT, o.felt, null);
@@ -142,7 +275,7 @@ async function main() {
     }
     const reports = chosen.map((c) => buildReport(c, {
       plan: plans[c.lab] ?? c.plan,
-      work,
+      work: work ?? (APP_PRODUCTS.includes(c.product) ? 'chat' : 'coding'),
       account,
       felt: felt === 'skip' ? null : felt,
       clientId: state.client_id,
@@ -186,6 +319,14 @@ async function main() {
     if (e.message === 'Nothing was sent.') return console.log(e.message);
     throw e;
   }
+}
+
+function usageLine(w, k) {
+  const bar = '█'.repeat(Math.round(w.used / 10)).padEnd(10, '░');
+  const left = Math.max(0, (w.resets.getTime() - Date.now()) / 60_000);
+  const label = (w.window === '5h' ? '5-hour' : 'weekly').padEnd(8);
+  const text = `  ${label}${bar} ${String(w.used).padStart(3)}%   resets in ${duration(left)}`;
+  return w.used >= 100 ? k.bold(`${text}   used up`) : text;
 }
 
 main().catch((e) => {
