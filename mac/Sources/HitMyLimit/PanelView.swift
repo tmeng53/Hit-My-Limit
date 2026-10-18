@@ -144,10 +144,13 @@ struct PanelView: View {
     private func codex(_ x: Status.Codex, _ s: Status) -> Tool? {
         let sorted = x.limits.sorted { $0.used > $1.used }
         guard let top = sorted.first else { return nil }
-        let name = { (l: Status.CodexLimit) in l.window == "5h" ? "5-hour" : Options.windows[l.window] ?? l.window }
+        let name = { (l: Status.CodexLimit) -> String in
+            let n = l.window == "5h" ? "5-hour" : Options.windows[l.window] ?? l.window
+            return n.prefix(1).uppercased() + n.dropFirst()
+        }
         let left = [name(top), top.resets_at.map { "resets \(Format.until(date($0)))" }].compactMap { $0 }.joined(separator: " · ")
         let other = sorted.dropFirst().map { l in
-            (name(l).prefix(1).uppercased() + name(l).dropFirst()) + " \(Int(l.used.rounded()))%"
+            name(l) + " \(Int(l.used.rounded()))%"
         }.joined(separator: " · ")
         return Tool(percent: top.used, view: AnyView(ToolRow(
             dot: Look.codex, name: "Codex", plan: Options.planName("openai", x.plan ?? s.plans["openai"]),
