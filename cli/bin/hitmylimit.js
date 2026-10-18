@@ -12,7 +12,6 @@ import { hitKey, loadState, saveState, statePath } from '../src/state.js';
 import { colors, hitLines, unreadNote } from '../src/display.js';
 import { DAY, duration } from '../src/time.js';
 import { APPS, askText, manualHit, parsePast, parseWhen, windowsFor } from '../src/manual.js';
-import { claudeLogin, claudeUsage, codexLogin, codexUsage, usageHits } from '../src/usage.js';
 import { hookSummary, unusual } from '../src/summary.js';
 import { addHook, claudeSettingsPath, hasHook, installCopy, notify, readSettings, removeHook, writeSettings } from '../src/hook.js';
 
@@ -31,17 +30,15 @@ hasn't been sent yet, and sends it to hitmylimit.com when you press Enter.
   hook off   Stop sending automatically.
 
 Options:
-  --source <how>    logs (default), login (check live with your Claude Code /
-                    Codex login, counts claude.ai and ChatGPT too) or manual
-                    (3 quick questions, any app)
+  --source manual   Answer 3 quick questions instead, for a limit the logs
+                    don't show (claude.ai, ChatGPT, Gemini...)
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
   --show            Print the exact data before asking to send
   --yes             Send without asking. Needed when not run in a terminal
   -h, --help        Show this help
   -v, --version     Show the version
 
-It reads ~/.claude/projects and ~/.codex/sessions. It reads your login and
-contacts Anthropic or OpenAI only with --source login.
+It reads ~/.claude/projects and ~/.codex/sessions, and never your logins.
 `;
 
 const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
@@ -102,7 +99,8 @@ async function main() {
   };
   // The plan is asked once per lab and remembered. --plan changes it.
   const askPlan = async (lab, force = false) => {
-    if (o.plan !== undefined) return (state.plans[lab] = choose(PLANS[lab], o.plan));
+    if (o.plan !== undefined && PLANS[lab].some(([k]) => k === o.plan)) return (state.plans[lab] = o.plan);
+    if (o.plan !== undefined && lab === 'anthropic') choose(PLANS[lab], o.plan);
     if (state.plans[lab] && !force) return state.plans[lab];
     if (!interactive) throw new Error('Pass --plan with the plan you were on when you hit the limit');
     const def = Math.max(0, PLANS[lab].findIndex(([k]) => k === state.plans[lab]));
@@ -118,6 +116,18 @@ async function main() {
       throw new Error('Use: npx hitmylimit hook on, or npx hitmylimit hook off');
     }
     if (positionals.length) throw new Error(`Unknown command "${positionals.join(' ')}". See npx hitmylimit --help`);
+
+    // --plan is saved right away, even if nothing gets sent. A name several labs share (free, enterprise) is taken
+    // as the Claude plan, since Codex logs its own.
+    if (o.plan !== undefined) {
+      const labs = Object.keys(PLANS).filter((lab) => PLANS[lab].some(([k]) => k === o.plan));
+      if (!labs.length) throw new Error(`"${o.plan}" isn't a plan this tool knows, e.g. pro, max-5x, max-20x, plus, pro-200`);
+      for (const lab of labs.includes('anthropic') ? ['anthropic'] : labs) state.plans[lab] = o.plan;
+      await save();
+    }
+
+    // The hook runs a saved copy of this tool; keep it on the version being run now.
+    if (state.hook) await installCopy(join(dirname(statePathname), 'cli')).catch(() => {});
 
     // What the hook sent while Claude Code was running, shown once.
     if (state.last_auto && !state.last_auto.shown && interactive) {
@@ -136,9 +146,8 @@ async function main() {
       else state.plans.anthropic = plan;
     }
 
-    const source = choose([['login'], ['logs'], ['manual']], o.source, null);
+    const source = choose([['logs'], ['manual']], o.source, null);
     if (source === 'manual' && !interactive) throw new Error('--source manual needs a terminal to answer the questions');
-    if (source === 'login') state.login_ok = true;
     let found = [];
     let note = null;
     let logsSeen = [];
@@ -149,8 +158,6 @@ async function main() {
       found = [...claudeHits(claude), ...codexHits(codex)];
       note = unreadNote([['Claude Code', claude.unread], ['Codex', codex.unread]], color);
       logsSeen = [claude.usage.length && 'Claude Code', codex.usage.length && 'Codex'].filter(Boolean);
-      // Once the live check is allowed, it runs every time with the logs.
-      if (state.login_ok && source !== 'logs') found = merge(found, await liveCheck());
     }
 
     const isNew = (c) => !state.sent.includes(hitKey(c));
@@ -254,28 +261,6 @@ async function main() {
     throw e;
   }
 
-  // The live check: how full each limit is now, and a hit for any that is used up.
-  async function liveCheck() {
-    const [cl, cx] = await Promise.all([claudeLogin(), codexLogin()]);
-    if (!cl && !cx) {
-      console.log('No Claude Code or Codex login found on this computer.');
-      return [];
-    }
-    const hits = [];
-    for (const [name, check] of [cl && ['Claude', () => claudeUsage(cl)], cx && ['ChatGPT / Codex', () => codexUsage(cx)]].filter(Boolean)) {
-      try {
-        const u = await check();
-        console.log(`\n${color.bold(u.name)}${u.plan ? color.dim(`  ${planName(u.lab, u.plan)}`) : ''}`);
-        for (const w of u.windows) console.log(usageLine(w, color));
-        hits.push(...usageHits(u));
-      } catch (e) {
-        const why = e.message === 'login expired' ? `login expired; open ${name === 'Claude' ? 'Claude Code' : 'Codex'} once and try again` : e.message;
-        console.log(`\n${name}: couldn't check usage (${why}).`);
-      }
-    }
-    return hits;
-  }
-
   // The three questions for a limit that left no logs here.
   async function quickQuestions() {
     const product = await menu('\nWhich app?', APPS.map(([k, label]) => [k, label]), 0);
@@ -365,10 +350,6 @@ async function runHook(o) {
       hits = claudeHits(await readClaude(claudeDirs(), Date.now() - 8 * DAY));
       hit = hits.filter((h) => h.hit >= Date.now() - 15 * 60_000).pop() ?? null;
     }
-    if (!hit && state.login_ok) {
-      const login = await claudeLogin().catch(() => null);
-      if (login) hit = usageHits(await claudeUsage(login).catch(() => ({ windows: [] }))).pop() ?? null;
-    }
     // A short API rate limit, not a plan's usage limit.
     if (!hit || state.sent.includes(hitKey(hit))) return;
 
@@ -408,23 +389,6 @@ function readStdin() {
       resolve(text);
     });
   });
-}
-
-// A used-up window from the live check. The logs may already have the same hit, with token counts.
-function merge(fromLogs, fromLogin) {
-  const out = [...fromLogs];
-  for (const h of fromLogin) {
-    if (!out.some((f) => f.lab === h.lab && f.window === h.window && Math.abs(f.start - h.start) < 15 * 60_000)) out.push(h);
-  }
-  return out;
-}
-
-function usageLine(w, k) {
-  const bar = '█'.repeat(Math.round(w.used / 10)).padEnd(10, '░');
-  const left = Math.max(0, (w.resets.getTime() - Date.now()) / 60_000);
-  const label = (w.window === '5h' ? '5-hour' : 'weekly').padEnd(8);
-  const text = `  ${label}${bar} ${String(w.used).padStart(3)}%   resets in ${duration(left)}`;
-  return w.used >= 100 ? k.bold(`${text}   used up`) : text;
 }
 
 main().catch((e) => {

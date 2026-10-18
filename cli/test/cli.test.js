@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -298,6 +298,14 @@ test('without a terminal, nothing is sent unless --yes is given', async () => {
     const a = await run([]);
     assert.equal(a.err, null);
     assert.match(a.stdout, /Nothing was sent\. Run with --yes/);
+    assert.equal(received, 0);
+    // --plan is kept even when nothing is sent, and a hook's saved copy of the tool is refreshed on a normal run.
+    const statePath = join(home, '.config', 'hitmylimit', 'state.json');
+    mkdirSync(join(home, '.config', 'hitmylimit'), { recursive: true });
+    writeFileSync(statePath, JSON.stringify({ hook: true }));
+    await run(['--plan', 'max-5x']);
+    assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).plans.anthropic, 'max-5x');
+    assert.ok(existsSync(join(home, '.config', 'hitmylimit', 'cli', 'bin', 'hitmylimit.js')));
     assert.equal(received, 0);
     await run(['--yes']);
     assert.equal(received, 1);
