@@ -56,12 +56,6 @@ contacts Anthropic or OpenAI only after you say yes to the live check.
 const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
 const APP_PRODUCTS = ['claude-app', 'chatgpt', 'gemini-app'];
 const planName = (lab, plan) => PLANS[lab].find(([k]) => k === plan)?.[1] ?? plan;
-const LOGIN_NOTE = [
-  '',
-  'This reads the login Claude Code and Codex saved on this computer and uses it',
-  'only to ask Anthropic and OpenAI how full your limits are. The login is never',
-  'sent to hitmylimit, printed or saved. On a Mac, the Keychain may ask first.',
-].join('\n');
 // The offer to turn the hook on leads with what you get back each time.
 const hookOffer = (plan) => {
   const name = plan ? planName('anthropic', plan) : 'Pro';
@@ -169,6 +163,7 @@ async function main() {
     let list = o.all || o.pick !== undefined ? found : found.filter(isNew);
     if (!list.length && source !== null) {
       if (source === 'manual') list = [await quickQuestions()];
+      else if (interactive) console.log('\nNo new limit hits.');
     } else if (!list.length && interactive) {
       if (found.length) {
         // Nothing new, but the past hits are still worth seeing.
@@ -177,19 +172,6 @@ async function main() {
         past.slice(0, 5).forEach((c, i) => console.log(`${hitLines(c, i, { sent: true, c: color }).join('\n')}\n`));
         if (past.length > 5) console.log(color.dim(`${past.length - 5} more: npx hitmylimit --all\n`));
       } else console.log(logsSeen.length ? `No limit hits in your ${logsSeen.join(' and ')} logs.` : 'No Claude Code or Codex logs on this computer.');
-      const elsewhere = [['no', 'No'], ['manual', 'Yes, answer 3 quick questions (claude.ai, ChatGPT, Gemini...)']];
-      if (!state.login_ok) elsewhere.splice(1, 0, ['login', 'Yes, check live with my Claude Code / Codex login']);
-      const how = await menu('\nRan out somewhere else?', elsewhere, 0);
-      if (how === 'login') {
-        console.log(color.dim(LOGIN_NOTE));
-        if ((await menu('Go ahead?', [['yes', 'Yes, check my usage'], ['no', 'No']], 0)) === 'yes') {
-          state.login_ok = true;
-          list = (await liveCheck()).filter(isNew);
-          if (!list.length) console.log('\nNothing is used up right now. Run npx hitmylimit again when you run out.');
-        }
-      } else if (how === 'manual') {
-        list = [await quickQuestions()];
-      }
     }
     if (!list.length) {
       if (note) console.log(`\n${note}`);

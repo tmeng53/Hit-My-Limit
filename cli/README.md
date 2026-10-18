@@ -19,13 +19,10 @@ Each hit shows how long the limit lasted, the token count and a bar per model:
      sonnet  ████░░░░░░░░░░░░░░░░   22%  840K
 ```
 
-If there's nothing new, it still lists your last few hits, marked "(sent to hitmylimit)", then asks whether you ran
-out somewhere else:
+If there's nothing new, it lists your last few hits, marked "(sent to hitmylimit)".
 
-- **Check live with my Claude Code / Codex login.** Asks Anthropic and OpenAI how full your 5-hour and weekly limits
-  are right now. This counts claude.ai, ChatGPT, the apps and cloud agents, not only this computer. It asks before
-  reading the login the first time, and after that checks live on every run.
-- **Answer 3 quick questions.** Which app, which limit, when it resets. Works for any app, Gemini included.
+To report a limit the logs don't show, use `--source login` (asks Anthropic and OpenAI how full your limits are right
+now, including claude.ai, ChatGPT and cloud agents) or `--source manual` (3 quick questions, any app).
 
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the
 tool tells you how your report compares.
