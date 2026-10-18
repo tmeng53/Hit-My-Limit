@@ -20,16 +20,17 @@ struct ToolBlock<Extra: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(dot).frame(width: 9, height: 9)
-                Text(name).font(.system(size: 13, weight: .semibold))
-                if let plan { Text(plan).font(.system(size: 13)).foregroundStyle(.secondary) }
+                Text(name).font(.system(size: 13, weight: .semibold)).fixedSize()
+                if let plan { Text(plan).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize() }
                 Spacer(minLength: 4)
                 if let resets { Text(resets).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1) }
             }
             HStack(alignment: .lastTextBaseline) {
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text(big).font(.system(size: 34, weight: .semibold)).monospacedDigit()
                     Text(unit).font(.system(size: 15, weight: .medium)).foregroundStyle(.secondary)
                 }
+                .lineLimit(1).fixedSize()
                 Spacer(minLength: 8)
                 if let detail {
                     detail.font(.system(size: 12)).foregroundStyle(.secondary)
@@ -91,6 +92,10 @@ struct ModelList: View {
         let list = models.sorted { $0.value.total > $1.value.total }
         let top = max(1, list.first?.value.total ?? 1)
         VStack(alignment: .leading, spacing: 5) {
+            // One model needs no breakdown: the total above is already its number.
+            if list.count == 1, let name = list.first?.key {
+                Text("\(label): \(name) only").font(.system(size: 11)).foregroundStyle(.secondary)
+            } else {
             Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
             ForEach(list, id: \.key) { name, m in
                 HStack(spacing: 8) {
@@ -101,6 +106,7 @@ struct ModelList: View {
                         .frame(minWidth: 44, alignment: .trailing)
                 }
                 .help("Input \(Format.tokens(m.input)), output \(Format.tokens(m.output)), cache read \(Format.tokens(m.cache_read)), cache write \(Format.tokens(m.cache_write))")
+            }
             }
         }
         .padding(.top, 4)

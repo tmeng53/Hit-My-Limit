@@ -99,15 +99,15 @@ struct PanelView: View {
             ) { EmptyView() }))
         }
         guard let w = c.window else {
-            let help = "A 5-hour window opens with your first Claude Code message after the last one ended. Only Claude Code on this Mac writes the logs read here; claude.ai and Claude Code on the web don't."
+            let help = "The window has ended; the next one opens with your next Claude Code message. A 5-hour window opens with your first Claude Code message after the last one ended. Only Claude Code on this Mac writes the logs read here; claude.ai and Claude Code on the web don't."
             if let lw = c.last_window, lw.tokens > 0 {
                 let ago = Format.span(Date().timeIntervalSince1970 - lw.ended_at / 1000)
                 return Tool(percent: 0, view: AnyView(ToolBlock(
-                    dot: Look.claude, name: "Claude Code", plan: plan, resets: "window ended \(ago) ago",
-                    big: Format.tokens(lw.tokens), unit: "tokens", detail: Text("in your last window\nnext one opens when you use it"),
+                    dot: Look.claude, name: "Claude Code", plan: plan, resets: "ended \(ago) ago",
+                    big: Format.tokens(lw.tokens), unit: "tokens", detail: Text("last 5-hour window"),
                     percent: nil, tint: Look.claude, chip: chip, help: help
                 ) {
-                    if let m = lw.models, !m.isEmpty { ModelList(label: "By model, last window", models: m, tint: Look.claude) }
+                    if let m = lw.models, !m.isEmpty { ModelList(label: "By model", models: m, tint: Look.claude) }
                 }))
             }
             return Tool(percent: 0, view: AnyView(ToolBlock(
@@ -134,7 +134,7 @@ struct PanelView: View {
     }
 
     @ViewBuilder private func claudeModels(_ w: Status.ClaudeWindow) -> some View {
-        if let m = w.models, !m.isEmpty { ModelList(label: "By model, this window", models: m, tint: Look.claude) }
+        if let m = w.models, !m.isEmpty { ModelList(label: "By model", models: m, tint: Look.claude) }
     }
 
     private func codex(_ x: Status.Codex, _ s: Status) -> Tool? {
@@ -158,7 +158,7 @@ struct PanelView: View {
                 .padding(.top, 4)
                 .help(l.resets_at.map { "Resets \(Format.until(date($0)))" } ?? "")
             }
-            if let m = x.models, !m.isEmpty { ModelList(label: "By model, this 5-hour window", models: m, tint: Look.codex) }
+            if let m = x.models, !m.isEmpty { ModelList(label: "By model, 5-hour window", models: m, tint: Look.codex) }
         }))
     }
 
