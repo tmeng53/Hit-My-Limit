@@ -155,6 +155,58 @@ test('Codex: finds a hit recorded as a refused turn after the last snapshot', as
   assert.equal(hits[0].start_hour, 0);
 });
 
+test('Codex: a new session that starts out of quota uses the snapshot from an earlier session', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const resetsAt = Date.parse('2026-10-04T05:00:00Z') / 1000;
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:40:00Z'), type: 'event_msg', payload: { type: 'token_count',
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 0, output_tokens: 50 } },
+      rate_limits: { plan_type: 'plus', primary: { used_percent: 99.0, window_minutes: 300, resets_at: resetsAt } } } },
+  ]));
+  writeFileSync(join(dir, 'rollout-b.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:50:00Z'), type: 'event_msg', payload: { type: 'error', message: "You've hit your usage limit. Try again later." } },
+  ]));
+  const data = await readCodex([dir], since);
+  const hits = codexHits(data);
+  assert.equal(data.unread.length, 0);
+  assert.equal(hits.length, 1);
+  assert.equal(new Date(hits[0].start).toISOString(), '2026-10-04T00:00:00.000Z');
+  assert.equal(hits[0].plan, 'plus');
+});
+
+test('Codex: a usage-limit error with no snapshot at all is skipped, not unread', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:47:22Z'), type: 'event_msg', payload: { type: 'token_count', info: null,
+      rate_limits: { limit_id: 'premium', primary: null, secondary: null, plan_type: null } } },
+    { timestamp: T('2026-10-04T02:47:22Z'), type: 'event_msg', payload: { type: 'task_complete',
+      error: { message: "You've hit your usage limit. Upgrade to Plus to continue using Codex, or try again at Oct 6th, 2026 10:06 PM.", codex_error_info: 'usage_limit_exceeded' } } },
+  ]));
+  const data = await readCodex([dir], since);
+  assert.equal(codexHits(data).length, 0);
+  assert.equal(data.unread.length, 0);
+});
+
+test('Codex: a session the next day, still out of weekly quota, uses the last snapshot', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  const weekly = Date.parse('2026-10-08T00:00:00Z') / 1000;
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:40:00Z'), type: 'event_msg', payload: { type: 'token_count',
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 0, output_tokens: 50 } },
+      rate_limits: { plan_type: 'plus', primary: { used_percent: 40, window_minutes: 300, resets_at: Date.parse('2026-10-04T05:00:00Z') / 1000 },
+        secondary: { used_percent: 100, window_minutes: 10080, resets_at: weekly } } } },
+  ]));
+  writeFileSync(join(dir, 'rollout-b.jsonl'), lines([
+    { timestamp: T('2026-10-05T10:00:00Z'), type: 'event_msg', payload: { type: 'error', message: "You've hit your usage limit. Try again later." } },
+  ]));
+  const data = await readCodex([dir], since);
+  const hits = codexHits(data);
+  assert.equal(data.unread.length, 0);
+  // The same weekly hit, counted once.
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].window, 'weekly');
+});
+
 test('Claude Code: reads "session limit" notices and the 12:20am reset format', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
   writeFileSync(join(dir, 'a.jsonl'), lines([
@@ -179,8 +231,12 @@ test('hit list shows tokens, cache share, models, plan and weekly use', async ()
   assert.match(text, /Codex, 5-hour limit {2}new/);
   assert.match(text, /Ran out 2h 15m after the window started \(09:00 UTC\)/);
   assert.match(text, /2\.0M tokens, 12 requests, 75% read from cache/);
-  assert.match(text, /gpt-5-codex +1\.5M +75%/);
+  assert.match(text, /gpt-5-codex  █{15}░{5}   75%  1\.5M/);
+  assert.match(text, /gpt-5-mini   █{5}░{15}   25%  500K/);
+  assert.match(hitLines(c, 0, { sent: true }).join('\n'), /5-hour limit {2}\(sent to hitmylimit\)/);
   assert.match(text, /plan Plus \(from the logs\), weekly limit 40% used/);
+  const claude = { ...c, lab: 'anthropic', product: 'claude-code', plan: null, weekly_used: null };
+  assert.match(hitLines(claude, 0, { plans: { anthropic: 'max-5x' } }).join('\n'), /plan Max 5x \(you picked\)/);
 });
 
 test('limit notices that cannot be read are counted, rate-limit errors are not', async () => {
@@ -235,7 +291,7 @@ test('without a terminal, nothing is sent unless --yes is given', async () => {
   ]));
   const run = (args) => new Promise((resolve) => {
     execFile(process.execPath, [new URL('../bin/hitmylimit.js', import.meta.url).pathname, ...args], {
-      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
+      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', XDG_CONFIG_HOME: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
     }, (err, stdout) => resolve({ err, stdout }));
   });
   try {

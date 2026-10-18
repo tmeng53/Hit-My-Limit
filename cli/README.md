@@ -1,25 +1,74 @@
 # hitmylimit
 
-Share when you hit an AI usage limit, from your local Claude Code and Codex logs.
+Share when you hit an AI usage limit: Claude, Claude Code, ChatGPT, Codex or Gemini.
 
 ```sh
 npx hitmylimit
 ```
 
-It finds the times you hit a usage limit in the last 30 days, asks which plan you were on (unless Codex logged it),
-prints the exact reports, and sends every hit you haven't sent before to [hitmylimit.com](https://hitmylimit.com/limits)
-only if you say yes.
+It reads your Claude Code and Codex logs and shows any limit you ran out of that you haven't sent yet. Press Enter
+to send it to [hitmylimit.com](https://hitmylimit.com/limits). The first time, it asks your Claude plan (or skip, if you don't use Claude) and remembers it. If a
+hit later uses over twice (or under half) your usual before the limit, it checks once that you're still on that plan.
+
+Each hit shows how long the limit lasted, the token count and a bar per model:
+
+```
+  1  2026-10-18  Claude Code, 5-hour limit  new
+     Ran out 3h 35m after the window started (23:00 UTC)
+     3.8M tokens, 40 requests, 95% read from cache
+     opus    ███████████████░░░░░   78%  3.0M
+     sonnet  ████░░░░░░░░░░░░░░░░   22%  840K
+```
+
+If there's nothing new, it lists your last few hits, marked "(sent to hitmylimit)".
+
+To report a limit the logs don't show, use `--source login` (asks Anthropic and OpenAI how full your limits are right
+now, including claude.ai, ChatGPT and cloud agents) or `--source manual` (3 quick questions, any app).
+
 Once a plan has 20 reports, the site shows how long people on it usually last before hitting the limit, and the
 tool tells you how your report compares.
 
+## Report automatically from Claude Code
+
+```sh
+npx hitmylimit hook on
+```
+
+This adds a hook to Claude Code (`StopFailure` with the `rate_limit` matcher, in `~/.claude/settings.json`). Each time
+Claude Code stops on a usage limit, you get a desktop notification like:
+
+```
+Claude Pro: 5-hour limit out after 3h 15m
+Sooner than 62% of Pro reports
+Opus 78% · Sonnet 22%
+```
+
+Until your plan has 20 reports, the second line compares with your own week instead ("2nd time this week, 40m
+sooner than Tue"). The hook sends that report right away, without asking, and the next time you run
+`npx hitmylimit` you see it in full. It asks before turning on, and `npx hitmylimit hook off` removes it. Other
+settings and hooks are left as they are.
+
+The hook runs a copy of this tool kept in `~/.config/hitmylimit/cli`, so it works without npx. Codex has no such hook,
+but it writes how full your limits are into its own logs, so a normal run already finds Codex hits.
+
 ## What it reads
+
+With the **live check**, it reads the login Claude Code saved (the macOS Keychain entry `Claude Code-credentials`, or
+`~/.claude/.credentials.json`) and Codex saved (`~/.codex/auth.json`), and sends it only to
+`api.anthropic.com/api/oauth/usage` and `chatgpt.com/backend-api/wham/usage`. It never sends the login to
+hitmylimit, prints it, saves it or refreshes it. If the login has expired, open Claude Code or Codex once and try again.
+These usage pages aren't documented by Anthropic or OpenAI, so they may change.
+
+It always reads:
 
 - Claude Code: `~/.claude/projects/**/*.jsonl` (or `$CLAUDE_CONFIG_DIR/projects`)
 - Codex: `~/.codex/sessions/**/*.jsonl` (or `$CODEX_HOME/sessions`)
 
 From those files it uses timestamps, token counts, model names, Codex's rate-limit percentages, and the text of the
-"limit reached" notices. It never reads login or credential files, never contacts Anthropic or OpenAI, and never
-sends prompts, code, file names or paths.
+"limit reached" notices. Until you say yes to the live check, it never reads login files and never contacts Anthropic or OpenAI.
+It never sends prompts, code, file names or paths.
+
+Reports from the login or the quick questions have no token counts, so `tokens`, `models` and `requests` are null.
 
 ## What it sends
 
@@ -54,7 +103,8 @@ sends prompts, code, file names or paths.
 - `weekly_used`: Codex only. How full the weekly limit was, in percent, when a 5-hour limit ran out.
 - Codex reports also carry `reasoning` tokens, which are part of `output`.
 
-`client_id` and the list of reports you have sent are kept in `~/.config/hitmylimit/state.json`.
+`client_id`, the list of reports you have sent, your plan and your answers to the questions above are kept in
+`~/.config/hitmylimit/state.json`.
 
 ## How the window start is worked out
 
@@ -66,14 +116,11 @@ sends prompts, code, file names or paths.
 ## Options
 
 ```
---days <n>        How far back to look (default 30)
---plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200
---work <kind>     coding, chat, research or other (default coding)
---account <type>  own, shared or reseller (default own)
---felt <answer>   sooner, usual or later than usual (not sent by default)
---pick <n>        Share only this hit (default: all not sent yet)
+hook on|off       Send automatically when Claude Code runs out, or stop
+--source <how>    logs (default), login (live check, counts claude.ai and ChatGPT) or manual (3 questions)
+--plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
+--show            Print the exact data before asking to send
 --yes             Send without asking (needed to send when not run in a terminal)
---dry-run         Print the report and stop
 ```
 
 Not affiliated with Anthropic or OpenAI. MIT license.
