@@ -15,7 +15,7 @@ const zh = lang === 'zh';
 const prefix = zh ? '/zh' : '';
 const n = (x: number) => x.toLocaleString(zh ? 'zh-CN' : 'en-US');
 const labName = (lab: string) => (LABS as Record<string, { en: string; zh: string }>)[lab]?.[lang] ?? lab;
-const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini', cursor: 'Cursor' };
 const planName = (lab: string, plan: string) =>
   `${BRAND[lab] ?? lab} ${(OPTIONS[lab as Lab]?.plans as Record<string, string> | undefined)?.[plan] ?? plan}`;
 // 95 -> "1h35", 45 -> "45m"
@@ -52,7 +52,7 @@ const text = {
     kicker: { tighter: 'Time to touch grass.', looser: 'Less grass this month.', same: 'No grass today.' }[leadDir],
     meta: `${n(data.reports)} report${data.reports === 1 ? '' : 's'} from ${n(data.people)} ${data.people === 1 ? 'person' : 'people'} · last ${data.days} days`,
     sample: 'sample data',
-    empty: 'Claude, ChatGPT, Gemini: are the limits getting worse? Log it when you run out. Enough logs and we’ll know.',
+    empty: 'Claude, ChatGPT, Gemini, Cursor: are the limits getting worse? Log it when you run out. Enough logs and we’ll know.',
     example: 'example',
     diffHead: '5-hour limit · median time to lockout',
     span: `${monthName.slice(0, 3).toLowerCase()} → now`,
@@ -72,7 +72,7 @@ const text = {
     kicker: { tighter: '又该摸鱼了。', looser: '摸鱼时间变少了。', same: '今天不用摸鱼。' }[leadDir],
     meta: `最近 ${data.days} 天 · ${n(data.people)} 人报了 ${n(data.reports)} 条`,
     sample: '示例数据',
-    empty: 'Claude、ChatGPT、Gemini 的额度是不是越来越不够用了？被限额了就来这儿说一声，看看是不是大家都一样。',
+    empty: 'Claude、ChatGPT、Gemini、Cursor 的额度是不是越来越不够用了？被限额了就来这儿说一声，看看是不是大家都一样。',
     example: '示例',
     diffHead: '5 小时额度 · 一般多久用完',
     span: `${month} 月 → 现在`,
@@ -243,8 +243,8 @@ const recent = changes.slice(0, 3);
 
 <style>
   /* Lab colors, checked for color-blind separation in both themes. Text never uses them. */
-  :root { --lab-anthropic: #d4622a; --lab-openai: #2a78d6; --lab-google: var(--faint); }
-  @media (prefers-color-scheme: dark) { :root { --lab-anthropic: #e0703a; --lab-openai: #4a90e8; } }
+  :root { --lab-anthropic: #d4622a; --lab-openai: #2a78d6; --lab-google: var(--faint); --lab-cursor: #b03a8c; }
+  @media (prefers-color-scheme: dark) { :root { --lab-anthropic: #e0703a; --lab-openai: #4a90e8; --lab-cursor: #d05aa8; } }
 
   .meta { font-size: var(--s-sm); color: var(--muted); margin: 0; }
   .muted { color: var(--muted); }

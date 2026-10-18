@@ -67,7 +67,7 @@ function tokens(n: number) {
   if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
   return String(n);
 }
-const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+const BRAND: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini', cursor: 'Cursor' };
 const planName = (g: GroupStats) => `${BRAND[g.lab] ?? g.lab} ${labelFor(g.lab, 'plans', g.plan)}`;
 const bar = (n: number) => '█'.repeat(Math.max(1, Math.round((10 * Math.min(n, MIN_GROUP)) / MIN_GROUP))).padEnd(10, '░');
 const vs = (g: GroupStats) =>

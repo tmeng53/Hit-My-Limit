@@ -1,4 +1,4 @@
-// The quick questions for limits that leave no logs on this computer (claude.ai, ChatGPT, Gemini, cloud agents).
+// The quick questions for limits that leave no logs on this computer (claude.ai, ChatGPT, Gemini, Cursor, cloud agents).
 import { createInterface } from 'node:readline/promises';
 import { parseReset } from './time.js';
 
@@ -9,6 +9,8 @@ export const APPS = [
   ['codex', 'Codex', 'openai'],
   ['gemini-app', 'Gemini (gemini.google.com or the app)', 'google'],
   ['gemini-cli', 'Gemini CLI', 'google'],
+  ['cursor', 'Cursor', 'cursor'],
+  ['cursor-cli', 'Cursor CLI', 'cursor'],
 ];
 
 export const WINDOW_MINUTES = { '5h': 300, daily: 1440, weekly: 10080, monthly: 44640 };
@@ -16,6 +18,7 @@ const WINDOWS_BY_LAB = {
   anthropic: [['5h', '5-hour limit'], ['weekly', 'weekly limit']],
   openai: [['5h', '5-hour limit'], ['weekly', 'weekly limit']],
   google: [['daily', 'daily limit'], ['5h', '5-hour limit'], ['weekly', 'weekly limit'], ['monthly', 'monthly limit']],
+  cursor: [['monthly', 'monthly limit'], ['weekly', 'weekly limit']],
 };
 export const windowsFor = (lab) => WINDOWS_BY_LAB[lab];
 

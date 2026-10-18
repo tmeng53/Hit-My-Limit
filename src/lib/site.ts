@@ -10,13 +10,14 @@ export const LABS = {
   anthropic: { en: 'Anthropic', zh: 'Anthropic' },
   openai: { en: 'OpenAI', zh: 'OpenAI' },
   google: { en: 'Google', zh: 'Google' },
+  cursor: { en: 'Cursor', zh: 'Cursor' },
 } as const;
 
 export const t = {
   en: {
     tagline: 'AI usage limit changes, with sources',
     headline: 'AI usage limit changes',
-    lead: 'Changes to usage limits for Claude, ChatGPT, Codex and Gemini, with dates and sources.',
+    lead: 'Changes to usage limits for Claude, ChatGPT, Codex, Gemini and Cursor, with dates and sources.',
     tighter: 'tighter',
     looser: 'looser',
     mixed: 'mixed',
@@ -41,7 +42,7 @@ export const t = {
     other: '中文',
     displayOnly: 'display only',
     logTitle: 'Every change to AI usage limits.',
-    logSub: 'Claude, ChatGPT, Codex and Gemini. Dated, with sources.',
+    logSub: 'Claude, ChatGPT, Codex, Gemini and Cursor. Dated, with sources.',
     lastChange: 'last change',
     log: 'All changes',
     plans: 'Plans',
@@ -65,7 +66,7 @@ export const t = {
     looser: '放宽',
     mixed: '有增有减',
     neutral: '显示',
-    lead: 'Claude、ChatGPT、Codex 和 Gemini 的用量额度变化，附日期和来源。',
+    lead: 'Claude、ChatGPT、Codex、Gemini 和 Cursor 的用量额度变化，附日期和来源。',
     all: '全部',
     limit: '额度变化',
     display: '显示方式变化',
@@ -86,7 +87,7 @@ export const t = {
     other: 'English',
     displayOnly: '仅显示方式',
     logTitle: 'AI 用量额度的每一次变化。',
-    logSub: 'Claude、ChatGPT、Codex 和 Gemini，附日期和来源。',
+    logSub: 'Claude、ChatGPT、Codex、Gemini 和 Cursor，附日期和来源。',
     lastChange: '最近一次',
     log: '全部变化',
     plans: '套餐',

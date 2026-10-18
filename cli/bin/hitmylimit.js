@@ -20,7 +20,7 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 const HELP = `Usage: npx hitmylimit [options]
        npx hitmylimit hook on|off
 
-Reports when you run out of a Claude, ChatGPT, Codex or Gemini usage limit.
+Reports when you run out of a Claude, ChatGPT, Codex, Gemini or Cursor usage limit.
 
 It reads your Claude Code and Codex logs, shows any limit you ran out of that
 hasn't been sent yet, and sends it to hitmylimit.com when you press Enter.
@@ -31,7 +31,7 @@ hasn't been sent yet, and sends it to hitmylimit.com when you press Enter.
 
 Options:
   --source manual   Answer 3 quick questions instead, for a limit the logs
-                    don't show (claude.ai, ChatGPT, Gemini...)
+                    don't show (claude.ai, ChatGPT, Cursor...)
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
   --show            Print the exact data before asking to send
   --yes             Send without asking. Needed when not run in a terminal
@@ -41,7 +41,7 @@ Options:
 It reads ~/.claude/projects and ~/.codex/sessions, and never your logins.
 `;
 
-const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini', cursor: 'Cursor' };
 const APP_PRODUCTS = ['claude-app', 'chatgpt', 'gemini-app'];
 const planName = (lab, plan) => PLANS[lab].find(([k]) => k === plan)?.[1] ?? plan;
 // The offer to turn the hook on leads with what you get back each time.

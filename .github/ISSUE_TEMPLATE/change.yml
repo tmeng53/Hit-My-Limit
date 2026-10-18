@@ -15,13 +15,14 @@ body:
         - Anthropic
         - OpenAI
         - Google
+        - Cursor
     validations:
       required: true
   - type: input
     id: product
     attributes:
       label: Product
-      placeholder: Claude Code, ChatGPT, Codex, Gemini CLI…
+      placeholder: Claude Code, ChatGPT, Codex, Gemini CLI, Cursor…
     validations:
       required: true
   - type: input

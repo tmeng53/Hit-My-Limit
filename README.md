@@ -3,7 +3,7 @@
 [hitmylimit.com](https://hitmylimit.com) shows how long people last before they hit AI usage limits, from
 anonymous reports, and keeps a dated, sourced log of every change the labs make to those limits.
 
-It covers Claude and Claude Code, ChatGPT and Codex, and Gemini and Gemini CLI. English at `/`, Chinese at `/zh/`.
+It covers Claude and Claude Code, ChatGPT and Codex, Gemini and Gemini CLI, and Cursor. English at `/`, Chinese at `/zh/`.
 
 ## Share a limit
 
@@ -12,7 +12,7 @@ npx hitmylimit
 ```
 
 It finds limits you ran out of in your Claude Code and Codex logs and sends the one you pick. For anything the
-logs don't show (claude.ai, ChatGPT, Gemini), run `npx hitmylimit --source manual` or use the form at
+logs don't show (claude.ai, ChatGPT, Gemini, Cursor), run `npx hitmylimit --source manual` or use the form at
 [hitmylimit.com/share](https://hitmylimit.com/share).
 
 To report automatically whenever Claude Code runs out, run `npx hitmylimit hook on`. It asks first, and
@@ -37,7 +37,7 @@ Individual reports are not published, only medians for groups of 20 or more.
 ## Change log
 
 [/changes](https://hitmylimit.com/changes) lists limit changes, changes to how usage is shown, and free resets.
-Feeds: `/rss.xml`, `/zh/rss.xml`, `/rss/anthropic.xml`, `/rss/openai.xml`, `/rss/google.xml`. Each item has one
+Feeds: `/rss.xml`, `/zh/rss.xml`, `/rss/anthropic.xml`, `/rss/openai.xml`, `/rss/google.xml`, `/rss/cursor.xml`. Each item has one
 `<category>`: `limit`, `display` or `reset`.
 
 You can also sign up for email alerts on `/changes`. Addresses are kept private and used only for those alerts.
