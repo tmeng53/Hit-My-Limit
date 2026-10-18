@@ -63,6 +63,7 @@ Without `DATABASE_URL`, the change log works and the report pages say reports ar
 locally, point `DATABASE_URL` at any Postgres database.
 
 Deployed on Vercel: pages are static, and the report API and the data pages run as Vercel Functions.
+Page views are counted with Vercel Web Analytics, which sets no cookies and stores no personal data.
 
 ## License
 
