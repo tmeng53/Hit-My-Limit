@@ -121,7 +121,6 @@ hook on|off       Send automatically when Claude Code runs out, or stop
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
 --show            Print the exact data before asking to send
 --yes             Send without asking (needed to send when not run in a terminal)
---dry-run         Go through everything but send nothing
 ```
 
 Not affiliated with Anthropic or OpenAI. MIT license.

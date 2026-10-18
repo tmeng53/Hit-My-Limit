@@ -37,7 +37,6 @@ Options:
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
   --show            Print the exact data before asking to send
   --yes             Send without asking. Needed when not run in a terminal
-  --dry-run         Go through everything but send nothing
   -h, --help        Show this help
   -v, --version     Show the version
 
@@ -78,7 +77,6 @@ async function main() {
       plan: { type: 'string' },
       show: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
-      'dry-run': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -212,10 +210,6 @@ async function main() {
     };
 
     if (o.show) showData();
-    if (o['dry-run']) {
-      await save();
-      return console.log(`Dry run: nothing was sent.${o.show ? '' : ' Add --show to see the exact data.'}`);
-    }
     // Without a terminal there is no one to confirm, so sending needs --yes.
     if (!interactive && !o.yes) return console.log('Nothing was sent. Run with --yes to send without a prompt.');
     if (interactive) {
