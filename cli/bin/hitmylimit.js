@@ -170,8 +170,13 @@ async function main() {
     if (!list.length && source !== null) {
       if (source === 'manual') list = [await quickQuestions()];
     } else if (!list.length && interactive) {
-      console.log(found.length ? 'No new limit hits. Everything in your logs was already sent.'
-        : logsSeen.length ? `No limit hits in your ${logsSeen.join(' and ')} logs.` : 'No Claude Code or Codex logs on this computer.');
+      if (found.length) {
+        // Nothing new, but the past hits are still worth seeing.
+        const past = [...found].sort((a, b) => b.hit - a.hit);
+        console.log('\nNo new limit hits. Your recent ones:\n');
+        past.slice(0, 5).forEach((c, i) => console.log(`${hitLines(c, i, { sent: true, c: color }).join('\n')}\n`));
+        if (past.length > 5) console.log(color.dim(`${past.length - 5} more: npx hitmylimit --all\n`));
+      } else console.log(logsSeen.length ? `No limit hits in your ${logsSeen.join(' and ')} logs.` : 'No Claude Code or Codex logs on this computer.');
       const elsewhere = [['no', 'No'], ['manual', 'Yes, answer 3 quick questions (claude.ai, ChatGPT, Gemini...)']];
       if (!state.login_ok) elsewhere.splice(1, 0, ['login', 'Yes, check live with my Claude Code / Codex login']);
       const how = await menu('\nRan out somewhere else?', elsewhere, 0);

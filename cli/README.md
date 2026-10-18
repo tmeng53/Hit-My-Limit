@@ -9,7 +9,18 @@ npx hitmylimit
 It reads your Claude Code and Codex logs and shows any limit you ran out of that you haven't sent yet. Press Enter
 to send it to [hitmylimit.com](https://hitmylimit.com/limits). The first time, it asks your Claude plan (or skip, if you don't use Claude) and remembers it.
 
-If there's nothing new in the logs, it asks whether you ran out somewhere else:
+Each hit shows how long the limit lasted, the token count and a bar per model:
+
+```
+  1  2026-10-18  Claude Code, 5-hour limit  new
+     Ran out 3h 35m after the window started (23:00 UTC)
+     3.8M tokens, 40 requests, 95% read from cache
+     opus    ███████████████░░░░░   78%  3.0M
+     sonnet  ████░░░░░░░░░░░░░░░░   22%  840K
+```
+
+If there's nothing new, it still lists your last few hits, marked "(sent to hitmylimit)", then asks whether you ran
+out somewhere else:
 
 - **Check live with my Claude Code / Codex login.** Asks Anthropic and OpenAI how full your 5-hour and weekly limits
   are right now. This counts claude.ai, ChatGPT, the apps and cloud agents, not only this computer. It asks before

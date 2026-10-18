@@ -198,7 +198,9 @@ test('hit list shows tokens, cache share, models, plan and weekly use', async ()
   assert.match(text, /Codex, 5-hour limit {2}new/);
   assert.match(text, /Ran out 2h 15m after the window started \(09:00 UTC\)/);
   assert.match(text, /2\.0M tokens, 12 requests, 75% read from cache/);
-  assert.match(text, /gpt-5-codex +1\.5M +75%/);
+  assert.match(text, /gpt-5-codex  █{15}░{5}   75%  1\.5M/);
+  assert.match(text, /gpt-5-mini   █{5}░{15}   25%  500K/);
+  assert.match(hitLines(c, 0, { sent: true }).join('\n'), /5-hour limit {2}\(sent to hitmylimit\)/);
   assert.match(text, /plan Plus \(from the logs\), weekly limit 40% used/);
 });
 

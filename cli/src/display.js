@@ -18,7 +18,7 @@ export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
     String(i + 1).padStart(3),
     isoDay(new Date(c.hit)),
     k.bold(`${PRODUCT_NAMES[c.product]}, ${WINDOW_NAMES[c.window]} limit`),
-    sent ? k.dim('already sent') : k.green('new'),
+    sent ? k.dim('(sent to hitmylimit)') : k.green('new'),
   ];
   const lines = [head.join('  ')];
   const startHour = String(new Date(c.start).getUTCHours()).padStart(2, '0');
@@ -31,11 +31,14 @@ export function hitLines(c, i, { sent = false, c: k = colors(false) } = {}) {
     if (cached) parts.push(`${cached}% read from cache`);
     lines.push(pad + parts.join(', '));
   }
-  const models = Object.entries(c.models ?? {}).sort((a, b) => b[1].total - a[1].total);
-  if (t && models.length > 1) {
+  const models = Object.entries(c.models ?? {}).filter(([, v]) => v?.total > 0).sort((a, b) => b[1].total - a[1].total);
+  if (t && models.length) {
+    // A bar per model, so the mix reads at a glance.
     const width = Math.max(...models.slice(0, 3).map(([m]) => m.length));
     for (const [m, v] of models.slice(0, 3)) {
-      lines.push(`${pad}${k.dim(m.padEnd(width))}  ${shortTokens(v.total).padStart(6)}  ${k.dim(`${String(pct(v.total, t.total)).padStart(3)}%`)}`);
+      const share = pct(v.total, t.total);
+      const filled = Math.max(1, Math.round(share / 5));
+      lines.push(`${pad}${m.padEnd(width)}  ${k.green('█'.repeat(filled))}${k.dim('░'.repeat(20 - filled))}  ${String(share).padStart(3)}%  ${k.dim(shortTokens(v.total))}`);
     }
     if (models.length > 3) lines.push(`${pad}${k.dim(`and ${models.length - 3} more`)}`);
   } else if (c.model) {
