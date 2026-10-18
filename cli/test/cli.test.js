@@ -174,6 +174,19 @@ test('Codex: a new session that starts out of quota uses the snapshot from an ea
   assert.equal(hits[0].plan, 'plus');
 });
 
+test('Codex: a usage-limit error with no snapshot at all is skipped, not unread', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
+  writeFileSync(join(dir, 'rollout-a.jsonl'), lines([
+    { timestamp: T('2026-10-04T02:47:22Z'), type: 'event_msg', payload: { type: 'token_count', info: null,
+      rate_limits: { limit_id: 'premium', primary: null, secondary: null, plan_type: null } } },
+    { timestamp: T('2026-10-04T02:47:22Z'), type: 'event_msg', payload: { type: 'task_complete',
+      error: { message: "You've hit your usage limit. Upgrade to Plus to continue using Codex, or try again at Oct 6th, 2026 10:06 PM.", codex_error_info: 'usage_limit_exceeded' } } },
+  ]));
+  const data = await readCodex([dir], since);
+  assert.equal(codexHits(data).length, 0);
+  assert.equal(data.unread.length, 0);
+});
+
 test('Codex: a session the next day, still out of weekly quota, uses the last snapshot', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
   const weekly = Date.parse('2026-10-08T00:00:00Z') / 1000;

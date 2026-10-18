@@ -108,8 +108,9 @@ export async function readCodex(dirs, since) {
   for (const o of orphans) {
     const s = snaps.filter((x) => x.time <= o.time && (x.snap.some((w) => w.resetsAt) || o.time - x.time < 5 * 3600_000)).pop();
     const w = s && full(s, o.time);
+    // With nothing to go on (often a free account refused on its first request) the notice is still one this tool
+    // knows, so it isn't counted as unread; there's just no limit window to report.
     if (w) hits.push({ time: o.time, ...w, plan: s.plan, version: o.version, snap: s.snap });
-    else unread.push(o);
   }
   usage.sort((a, b) => a.time - b.time);
   hits.sort((a, b) => a.time - b.time);
