@@ -110,7 +110,7 @@ struct PanelView: View {
             )))
         }
         guard let w = c.window else {
-            let help = "A 5-hour window opens with your first Claude Code message after the last one ended. Only Claude Code on this Mac writes the logs read here; claude.ai and Claude Code on the web don't."
+            let help = "No Claude Code use on this Mac since the last 5-hour window ended. Claude in the cloud, claude.ai and the Claude app count toward the same limit but don't write logs on this Mac, so they aren't shown."
             let meta: String
             var models: [String: Status.ModelTokens]? = nil
             if let lw = c.last_window, lw.tokens > 0 {
@@ -120,7 +120,7 @@ struct PanelView: View {
                 meta = "Last used \(Format.span(now - c.last_used / 1000)) ago"
             }
             return Tool(percent: -1, view: AnyView(ToolRow(
-                dot: Look.claude, name: "Claude Code", plan: plan, status: "Idle",
+                dot: Look.claude, name: "Claude Code", plan: plan, status: "Idle on this Mac",
                 left: Text(meta), chip: chip, models: models, help: help, open: expanded
             )))
         }
