@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { claudeDirs, claudeHits, readClaude } from '../src/claude.js';
 import { codexDirs, codexHits, readCodex } from '../src/codex.js';
-import { ACCOUNTS, FELT, PLANS, WINDOW_NAMES, WORK } from '../src/options.js';
+import { PLANS, WINDOW_NAMES } from '../src/options.js';
 import { buildReport, comparisonLine, send } from '../src/report.js';
 import { keypress, select } from '../src/select.js';
 import { hitKey, loadState, saveState, statePath } from '../src/state.js';
@@ -35,17 +35,9 @@ Options:
                     Codex login, counts claude.ai and ChatGPT too) or manual
                     (3 quick questions, any app)
   --plan <plan>     Your plan, e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
-  --days <n>        How far back to look in the logs (default 30)
-  --work <kind>     coding, chat, research or other (default chat for
-                    claude.ai, ChatGPT and Gemini, coding otherwise)
-  --account <type>  own, shared or reseller (default own)
-  --felt <answer>   Compared with usual: sooner, usual or later (not sent by default)
-  --all             Also list hits that were already sent
-  --pick <n>        Send only this hit, as numbered with --all
   --show            Print the exact data before asking to send
-  --yes             Send without asking. Needed to send when not run in a terminal
+  --yes             Send without asking. Needed when not run in a terminal
   --dry-run         Go through everything but send nothing
-  --api <url>       Send to another server (default https://hitmylimit.com/api/reports)
   -h, --help        Show this help
   -v, --version     Show the version
 
@@ -69,26 +61,30 @@ const hookOffer = (plan) => {
   ].join('\n');
 };
 
+function parseOptions(config) {
+  try {
+    return parseArgs(config);
+  } catch (e) {
+    const name = e.message.match(/'(-[^']+)'/)?.[1];
+    throw new Error(`${name ? `Unknown option ${name}` : e.message}. See npx hitmylimit --help`);
+  }
+}
+
 async function main() {
-  const { values: o, positionals } = parseArgs({
+  const { values: o, positionals } = parseOptions({
     allowPositionals: true,
     options: {
-      days: { type: 'string', default: '30' },
       source: { type: 'string' },
       plan: { type: 'string' },
-      work: { type: 'string' },
-      account: { type: 'string' },
-      felt: { type: 'string' },
-      all: { type: 'boolean', default: false },
-      pick: { type: 'string' },
       show: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
-      api: { type: 'string', default: process.env.HITMYLIMIT_API || 'https://hitmylimit.com/api/reports' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
   });
+  // Another server, for testing against a local copy of the site.
+  o.api = process.env.HITMYLIMIT_API || 'https://hitmylimit.com/api/reports';
   if (o.help) return console.log(HELP);
   if (o.version) return console.log(version);
   if (positionals[0] === 'hook' && positionals[1] === 'run') return runHook(o);
@@ -149,7 +145,7 @@ async function main() {
     let note = null;
     let logsSeen = [];
     if (source !== 'manual') {
-      const days = Math.max(1, Math.min(60, Number(o.days) || 30));
+      const days = 30;
       console.log(color.dim(`\nChecking your Claude Code and Codex logs from the last ${days} days...`));
       const [claude, codex] = await Promise.all([readClaude(claudeDirs(), Date.now() - days * DAY), readCodex(codexDirs(), Date.now() - days * DAY)]);
       found = [...claudeHits(claude), ...codexHits(codex)];
@@ -160,7 +156,7 @@ async function main() {
     }
 
     const isNew = (c) => !state.sent.includes(hitKey(c));
-    let list = o.all || o.pick !== undefined ? found : found.filter(isNew);
+    let list = found.filter(isNew);
     if (!list.length && source !== null) {
       if (source === 'manual') list = [await quickQuestions()];
       else if (interactive) console.log('\nNo new limit hits.');
@@ -170,7 +166,6 @@ async function main() {
         const past = [...found].sort((a, b) => b.hit - a.hit);
         console.log('\nNo new limit hits. Your recent ones:\n');
         past.slice(0, 5).forEach((c, i) => console.log(`${hitLines(c, i, { sent: true, plans: state.plans, c: color }).join('\n')}\n`));
-        if (past.length > 5) console.log(color.dim(`${past.length - 5} more: npx hitmylimit --all\n`));
       } else console.log(logsSeen.length ? `No limit hits in your ${logsSeen.join(' and ')} logs.` : 'No Claude Code or Codex logs on this computer.');
     }
     if (!list.length) {
@@ -188,16 +183,7 @@ async function main() {
     });
     if (note) console.log(`${note}\n`);
 
-    let chosen = list.filter(isNew);
-    if (o.pick !== undefined) {
-      const c = list[Number(o.pick) - 1];
-      if (!c) throw new Error(`--pick must be between 1 and ${list.length}`);
-      chosen = [c];
-    }
-    if (!chosen.length) {
-      await save();
-      return console.log('All of these were already sent. Use --pick to send one again.');
-    }
+    const chosen = list;
 
     // Codex logs the plan; the rest use the remembered plan, asked the first time.
     const plans = {};
@@ -212,14 +198,10 @@ async function main() {
         [['y', 'yes'], ['n', 'change plan']]);
       if (a === 'n') plans.anthropic = await askPlan('anthropic', true);
     }
-    const work = choose(WORK, o.work, null);
-    const account = choose(ACCOUNTS, o.account, 'own');
-    const felt = choose(FELT, o.felt, null);
     const reportsFor = () => chosen.map((c) => buildReport(c, {
       plan: plans[c.lab] ?? c.plan,
-      work: work ?? (APP_PRODUCTS.includes(c.product) ? 'chat' : 'coding'),
-      account,
-      felt,
+      work: APP_PRODUCTS.includes(c.product) ? 'chat' : 'coding',
+      account: 'own',
       clientId: state.client_id,
     }));
     let reports = reportsFor();

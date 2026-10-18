@@ -119,12 +119,6 @@ Reports from the login or the quick questions have no token counts, so `tokens`,
 hook on|off       Send automatically when Claude Code runs out, or stop
 --source <how>    logs (default), login (live check, counts claude.ai and ChatGPT) or manual (3 questions)
 --plan <plan>     e.g. pro, max-5x, max-20x, plus, pro-200 (remembered)
---days <n>        How far back to look (default 30)
---work <kind>     coding, chat, research or other (default chat for chat apps, coding otherwise)
---account <type>  own, shared or reseller (default own)
---felt <answer>   sooner, usual or later than usual (not sent by default)
---all             Also list hits that were already sent
---pick <n>        Send only this hit, as numbered with --all
 --show            Print the exact data before asking to send
 --yes             Send without asking (needed to send when not run in a terminal)
 --dry-run         Go through everything but send nothing
