@@ -44,11 +44,11 @@ enum Format {
     }
 }
 
-// Color only says which tool it is, or that something is worse than usual. Claude is clay, Codex is ink (OpenAI's
-// own brand is black and white), amber is "sooner than usual", red is 90% and up, green is a free reset.
+// Color only says which tool it is, or that something is worse than usual. Claude is clay, Codex is purple, amber is "sooner than usual", red is 90% and up, green is a free reset.
 enum Look {
     static let claude = Color(light: 0xd97757, dark: 0xd97757)
     static let ink = Color(light: 0x1d1d1f, dark: 0xf5f5f7)
+    static let codex = Color(light: 0x7b61ff, dark: 0x9d8cff)
     static let paper = Color(light: 0xffffff, dark: 0x1d1d1f)
     static let amber = Color(light: 0xb45309, dark: 0xf5a524)
     static let minus = Color(light: 0xd1242f, dark: 0xff7b72)
@@ -57,7 +57,7 @@ enum Look {
     static func lab(_ lab: String?) -> Color {
         switch lab {
         case "anthropic": return claude
-        case "openai": return ink
+        case "openai": return codex
         default: return .secondary
         }
     }

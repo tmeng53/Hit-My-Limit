@@ -270,6 +270,17 @@ test('status: a window whose reset has passed shows as empty', async () => {
   assert.deepEqual(s.limits, [{ window: '5h', used: 0, resets_at: null }]);
 });
 
+test('status: after a Claude Code window ends, the last one is still shown', async () => {
+  const { claudeNow } = await import('../src/status.js');
+  const at = (iso, n) => ({ time: Date.parse(iso), model: 'claude-opus-4', input: n, output: 0, cacheRead: 0, cacheWrite: 0 });
+  const usage = [at('2026-10-17T05:10:00Z', 100), at('2026-10-17T09:50:00Z', 200)];
+  const c = claudeNow({ usage }, [], Date.parse('2026-10-17T10:30:00Z'));
+  assert.equal(c.window, null);
+  assert.equal(new Date(c.last_window.ended_at).toISOString(), '2026-10-17T10:00:00.000Z');
+  assert.equal(c.last_window.tokens, 300);
+  assert.deepEqual(Object.keys(c.last_window.models), ['opus']);
+});
+
 test('Codex: usage before the period sets the baseline but is not counted', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hml-codex-'));
   const tc = (time, input) => ({

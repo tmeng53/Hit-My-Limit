@@ -22,6 +22,8 @@ export function claudeNow(claude, hits, now) {
   const start = fiveHourWindows(claude.usage).at(-1);
   const open = now < start + 5 * HOUR;
   const inWindow = open ? claude.usage.filter((u) => u.time >= start && u.time <= now) : [];
+  // Once a window has ended, the last one is still worth showing until the next message opens a new one.
+  const lastWindow = claude.usage.filter((u) => u.time >= start && u.time < start + 5 * HOUR);
   const past = hits.filter((h) => h.window === '5h' && h.tokens && h.hit < start);
   const blocked = hits.filter((h) => h.start + (h.window === 'weekly' ? 7 * DAY : 5 * HOUR) > now).at(-1);
   return {
@@ -36,6 +38,14 @@ export function claudeNow(claude, hits, now) {
           models: modelBreakdown(inWindow, modelFamily).models,
         }
       : null,
+    last_window: open
+      ? null
+      : {
+          start,
+          ended_at: start + 5 * HOUR,
+          tokens: lastWindow.reduce((n, u) => n + total(u), 0),
+          models: modelBreakdown(lastWindow, modelFamily).models,
+        },
     limited_until: blocked ? blocked.start + (blocked.window === 'weekly' ? 7 * DAY : 5 * HOUR) : null,
     week_tokens: claude.usage.filter((u) => u.time > now - 7 * DAY).reduce((n, u) => n + total(u), 0),
     last_used: claude.usage.at(-1).time,

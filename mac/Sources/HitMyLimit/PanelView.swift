@@ -99,11 +99,21 @@ struct PanelView: View {
             ) { EmptyView() }))
         }
         guard let w = c.window else {
+            let help = "A 5-hour window opens with your first Claude Code message after the last one ended. Only Claude Code on this Mac writes the logs read here; claude.ai and Claude Code on the web don't."
+            if let lw = c.last_window, lw.tokens > 0 {
+                let ago = Format.span(Date().timeIntervalSince1970 - lw.ended_at / 1000)
+                return Tool(percent: 0, view: AnyView(ToolBlock(
+                    dot: Look.claude, name: "Claude Code", plan: plan, resets: "window ended \(ago) ago",
+                    big: Format.tokens(lw.tokens), unit: "tokens", detail: Text("in your last window\nnext one opens when you use it"),
+                    percent: nil, tint: Look.claude, chip: chip, help: help
+                ) {
+                    if let m = lw.models, !m.isEmpty { ModelList(label: "By model, last window", models: m, tint: Look.claude) }
+                }))
+            }
             return Tool(percent: 0, view: AnyView(ToolBlock(
                 dot: Look.claude, name: "Claude Code", plan: plan, resets: nil,
                 big: "0", unit: "tokens", detail: Text("No 5-hour window open\nlast used \(Format.span(Date().timeIntervalSince1970 - c.last_used / 1000)) ago"),
-                percent: nil, tint: Look.claude, chip: chip,
-                help: "A 5-hour window opens with your first Claude Code message after the last one ended. Only Claude Code on this Mac writes the logs read here; claude.ai and Claude Code on the web don't."
+                percent: nil, tint: Look.claude, chip: chip, help: help
             ) { EmptyView() }))
         }
         let resets = "resets \(Format.until(date(w.resets_at)))"
@@ -133,10 +143,10 @@ struct PanelView: View {
         let name = { (l: Status.CodexLimit) in l.window == "5h" ? "5-hour" : Options.windows[l.window] ?? l.window }
         let rest = Array(sorted.dropFirst())
         return Tool(percent: top.used, view: AnyView(ToolBlock(
-            dot: Look.ink, name: "Codex", plan: Options.planName("openai", x.plan ?? s.plans["openai"]),
+            dot: Look.codex, name: "Codex", plan: Options.planName("openai", x.plan ?? s.plans["openai"]),
             resets: top.resets_at.map { "\(name(top)) resets \(Format.until(date($0)))" },
             big: "\(Int(top.used.rounded()))", unit: "%", detail: Text("of \(name(top)) limit"),
-            percent: top.used, tint: Look.bar(top.used, Look.ink), chip: trendChip(s, "openai")
+            percent: top.used, tint: Look.bar(top.used, Look.codex), chip: trendChip(s, "openai")
         ) {
             ForEach(rest, id: \.window) { l in
                 HStack(spacing: 10) {
@@ -148,7 +158,7 @@ struct PanelView: View {
                 .padding(.top, 4)
                 .help(l.resets_at.map { "Resets \(Format.until(date($0)))" } ?? "")
             }
-            if let m = x.models, !m.isEmpty { ModelList(label: "By model, this 5-hour window", models: m, tint: Look.ink) }
+            if let m = x.models, !m.isEmpty { ModelList(label: "By model, this 5-hour window", models: m, tint: Look.codex) }
         }))
     }
 
@@ -174,10 +184,18 @@ struct PanelView: View {
                 return hits.filter { cal.isDate(date($0.hit), inSameDayAs: d) }
             }
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
+                HStack(spacing: 10) {
                     SectionTitle("Limit hits, last 30 days")
                     Spacer()
-                    Text("\(hits.count)").font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                    // How many per tool, in the tool's color, so the bars below read as one or the other.
+                    ForEach(Array(Set(hits.map(\.product))).sorted(), id: \.self) { p in
+                        let lab = hits.first { $0.product == p }?.lab
+                        HStack(spacing: 4) {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Look.lab(lab)).frame(width: 8, height: 8)
+                            Text("\(Options.products[p] ?? p) \(hits.filter { $0.product == p }.count)")
+                                .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 HStack(alignment: .bottom, spacing: 3) {
                     ForEach(0..<30, id: \.self) { i in

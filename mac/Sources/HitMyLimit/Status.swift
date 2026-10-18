@@ -11,8 +11,16 @@ struct Status: Decodable {
         let past_hits: Int
         let models: [String: ModelTokens]?
     }
+    struct LastWindow: Decodable {
+        let start: Double
+        let ended_at: Double
+        let tokens: Double
+        let models: [String: ModelTokens]?
+    }
     struct Claude: Decodable {
         let window: ClaudeWindow?
+        // The window that ended most recently, while no window is open.
+        let last_window: LastWindow?
         let limited_until: Double?
         let week_tokens: Double
         let last_used: Double
