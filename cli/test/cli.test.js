@@ -313,3 +313,52 @@ test('without a terminal, nothing is sent unless --yes is given', async () => {
     server.close();
   }
 });
+
+test('Claude Code: a notice tagged usage_limit_reached counts even without the usual wording', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hml-claude-'));
+  writeFileSync(join(dir, 'a.jsonl'), lines([
+    { ...notice('2026-10-16T02:05:00Z', 'Out of usage · resets 3am (UTC)'), apiError: 'usage_limit_reached' },
+    notice('2026-10-16T02:06:00Z', 'API Error: Request rejected (429) · rate limit'),
+  ]));
+  const data = await readClaude([dir], since);
+  assert.equal(data.hits.length, 1);
+  assert.equal(data.unread.length, 0);
+});
+
+test('the hook sends only for a plan limit, not for other 429s', async () => {
+  const { createServer } = await import('node:http');
+  const { execFile } = await import('node:child_process');
+  let received = 0;
+  const server = createServer((req, res) => {
+    received++;
+    req.resume();
+    req.on('end', () => res.end('{"saved":true,"comparison":null}'));
+  });
+  await new Promise((r) => server.listen(0, r));
+  const home = mkdtempSync(join(tmpdir(), 'hml-home-'));
+  const now = Date.now();
+  const resets = new Date(now + 2 * 3600_000);
+  const h = resets.getUTCHours();
+  const clock = `${h % 12 || 12}:${String(resets.getUTCMinutes()).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`;
+  mkdirSync(join(home, '.claude', 'projects', 'p'), { recursive: true });
+  writeFileSync(join(home, '.claude', 'projects', 'p', 'a.jsonl'), lines([
+    assistant(new Date(now - 3 * 3600_000).toISOString(), 1, { input_tokens: 10, output_tokens: 10 }),
+    notice(new Date(now - 60_000).toISOString(), `You've hit your limit · resets ${clock} (UTC)`),
+  ]));
+  mkdirSync(join(home, '.config', 'hitmylimit'), { recursive: true });
+  writeFileSync(join(home, '.config', 'hitmylimit', 'state.json'), JSON.stringify({ hook: true, plans: { anthropic: 'pro' } }));
+  const run = (input) => new Promise((resolve) => {
+    const child = execFile(process.execPath, [new URL('../bin/hitmylimit.js', import.meta.url).pathname, 'hook', 'run'], {
+      env: { ...process.env, HOME: home, CODEX_HOME: '', CLAUDE_CONFIG_DIR: '', XDG_CONFIG_HOME: '', HITMYLIMIT_API: `http://localhost:${server.address().port}/api/reports` },
+    }, () => resolve());
+    child.stdin.end(JSON.stringify(input));
+  });
+  try {
+    await run({ error: 'rate_limit', last_assistant_message: "API Error: Repeated 529 Overloaded errors · we're experiencing high load" });
+    assert.equal(received, 0);
+    await run({ error: 'rate_limit', last_assistant_message: `You've hit your limit · resets ${clock} (UTC)` });
+    assert.equal(received, 1);
+  } finally {
+    server.close();
+  }
+});

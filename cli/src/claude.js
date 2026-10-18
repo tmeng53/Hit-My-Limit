@@ -39,6 +39,11 @@ export async function readClaude(dirs, since) {
         const msg = e.message;
         if (msg.model === '<synthetic>' || e.isApiErrorMessage) {
           const text = textOf(msg.content);
+          // Newer Claude Code versions tag the notice itself; the text checks below cover older ones.
+          if (e.apiError === 'usage_limit_reached') {
+            hits.push({ time, text: text.slice(0, 300), version: e.version ?? null });
+            return;
+          }
           if (NOT_USAGE.test(text)) return;
           if (LIMIT.test(text)) hits.push({ time, text: text.slice(0, 300), version: e.version ?? null });
           else if (/\blimit\b/i.test(text)) unread.push({ time, version: e.version ?? null });

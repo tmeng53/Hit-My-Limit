@@ -339,6 +339,10 @@ async function runHook(o) {
   try {
     const input = JSON.parse((await readStdin()) || '{}');
     if (input.error && input.error !== 'rate_limit') return;
+    // Claude Code reports server overload and other 429s as rate_limit too. A plan's limit starts with "You've hit
+    // your" or "You've reached your", the same test Claude Code uses; anything else isn't one.
+    const said = typeof input.last_assistant_message === 'string' ? input.last_assistant_message.trim() : '';
+    if (said && !/^you['’]ve (?:hit|reached) your/i.test(said)) return;
     const state = await loadState(statePathname);
     if (!state.hook) return;
 
