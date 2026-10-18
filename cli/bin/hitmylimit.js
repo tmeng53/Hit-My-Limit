@@ -112,8 +112,8 @@ async function main() {
   };
 
   const SOURCES = [
-    ['login', 'Use my Claude Code / Codex login   live usage, counts claude.ai and cloud use'],
-    ['logs', 'Local logs only                    misses browser, app and cloud use'],
+    ['login', 'Use my Claude Code / Codex login   live, includes claude.ai and cloud'],
+    ['logs', 'Local logs only                    misses browser, app and cloud'],
     ['manual', "I'll tell you                      3 quick questions, any app"],
   ];
   const LAB_NAME = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };

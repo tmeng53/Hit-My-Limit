@@ -6,12 +6,18 @@ export function select(question, choices, start = 0, { input = process.stdin, ou
   return new Promise((resolve, reject) => {
     let at = Math.min(Math.max(0, start), choices.length - 1);
     let drawn = 0;
+    // Blank lines before the question are printed once, outside the part that is redrawn.
+    const lead = /^\n*/.exec(question)[0];
+    question = question.slice(lead.length);
+    if (lead) output.write(lead);
+    // Rows a line takes on screen, counting lines the terminal wraps.
+    const rows = (line) => Math.max(1, Math.ceil(line.replace(/\x1b\[[0-9;]*m/g, '').length / (output.columns || 80)));
     const draw = () => {
       if (drawn) output.write(`\x1b[${drawn}A\x1b[0J`);
       const lines = [c.bold(question), ...choices.map(([, label], i) => (i === at ? `  ${c.green(`› ${label}`)}` : c.dim(`    ${label}`)))];
       lines.push(c.dim('  ↑/↓ or j/k to move, Enter to choose'));
       output.write(`${lines.join('\n')}\n`);
-      drawn = lines.length;
+      drawn = lines.reduce((n, line) => n + rows(line), 0);
     };
     const done = (err, value) => {
       input.off('keypress', onKey);
