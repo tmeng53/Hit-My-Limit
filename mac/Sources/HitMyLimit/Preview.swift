@@ -33,6 +33,30 @@ enum Preview {
         return try! JSONDecoder().decode(Status.self, from: Data(json.utf8))
     }
 
+    // The quiet state most people see: Claude Code between windows, Codex barely used, nothing new to share.
+    static func quietStatus() -> Status {
+        let now = Date().timeIntervalSince1970 * 1000
+        let h = 3_600_000.0, d = 24 * h
+        let json = """
+        {"generated_at":\(now),
+         "claude":{"window":null,"limited_until":null,"week_tokens":620500000,"last_used":\(now - 72 * 60_000),
+                   "last_window":{"start":\(now - 6.33 * h),"ended_at":\(now - 1.33 * h),"tokens":13500000,
+                                  "models":{"claude-opus-4-8":{"total":13500000,"input":900,"output":120000,"cache_read":12800000,"cache_write":579100}}}},
+         "codex":{"as_of":\(now - 300_000),"plan":"plus","window_start":\(now - 1 * h),
+                  "limits":[
+                   {"window":"5h","used":9,"resets_at":\(now + 4 * h)},
+                   {"window":"weekly","used":3,"resets_at":\(now + 5 * d)}]},
+         "hits":[
+           {"key":"q1","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 3 * d - 4 * h),"hit":\(now - 3 * d - 1 * h),"tokens":14100000,"plan":"max-20x","sent":true},
+           {"key":"q2","lab":"openai","product":"codex","window":"5h","start":\(now - 9 * d - 4 * h),"hit":\(now - 9 * d - 2 * h),"tokens":5200000,"plan":"plus","sent":true},
+           {"key":"q3","lab":"anthropic","product":"claude-code","window":"5h","start":\(now - 15 * d - 5 * h),"hit":\(now - 15 * d - 1 * h),"tokens":15800000,"plan":"max-20x","sent":true}],
+         "trend":[],
+         "plans":{"anthropic":"max-20x"},
+         "unread":{"claude":0,"codex":0}}
+        """
+        return try! JSONDecoder().decode(Status.self, from: Data(json.utf8))
+    }
+
     static let sampleChanges: [Change] = [
         Change(id: "0", lab: "anthropic", title: "Usage limits reset for all paid plans after an outage", link: nil, date: Date().addingTimeInterval(-3600), kind: "reset"),
         Change(id: "1", lab: "google", title: "Free Gemini users limited to Flash-Lite", link: nil, date: Date().addingTimeInterval(-8 * 86400)),
@@ -98,6 +122,21 @@ enum Preview {
             PanelView(model: model, hoverDay: 27)
         }.fixedSize(), title: "Panel, hovering a limit hit")
         hover.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - hover.frame.width - 20, y: screen.maxY))
+        let quietModel = Model()
+        quietModel.status = quietStatus()
+        quietModel.changes = sampleChanges
+        let quiet = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: quietModel)
+        }.fixedSize(), title: "Panel, quiet")
+        quiet.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - 10, y: screen.maxY - panel.frame.height - 10))
+        let expanded = window(ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            PanelView(model: model, expanded: true)
+        }.fixedSize(), title: "Panel, rows open")
+        expanded.setFrameTopLeftPoint(NSPoint(x: screen.maxX - panel.frame.width - hover.frame.width - 20, y: screen.maxY - hover.frame.height - 10))
+        let empty = window(ShareView(model: quietModel), title: "Share limit hits")
+        empty.setFrameTopLeftPoint(NSPoint(x: screen.minX + 520, y: screen.maxY - 300))
         let share = window(ShareView(model: model, sample: sampleReport), title: "Share limit hits")
         share.setFrameTopLeftPoint(NSPoint(x: screen.minX + 40, y: screen.maxY - 10))
         let sent = window(ShareView(model: model, sampleSent: sampleSent), title: "Share limit hits")
@@ -111,7 +150,7 @@ enum Preview {
         panel.makeKeyAndOrderFront(nil)
         // Window numbers for `screencapture -l`.
         if let out = ProcessInfo.processInfo.environment["HITMYLIMIT_PREVIEW_WINDOWS"] {
-            try? "panel \(panel.windowNumber)\nhover \(hover.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
+            try? "panel \(panel.windowNumber)\nhover \(hover.windowNumber)\nshare \(share.windowNumber)\nsent \(sent.windowNumber)\nsettings \(settings.windowNumber)\nquiet \(quiet.windowNumber)\nexpanded \(expanded.windowNumber)\nshare-empty \(empty.windowNumber)\n".write(toFile: out, atomically: true, encoding: .utf8)
         }
     }
 

@@ -1,47 +1,90 @@
 import SwiftUI
 
-// One tool's usage: name and plan, one big number, one bar, and the reset time. Claude Code and Codex use the same
-// block so the panel reads the same way for both.
-struct ToolBlock<Extra: View>: View {
+// One tool on the usage card. Every tool uses the same row: name and plan with the big number on the right, one bar,
+// and one meta line. A tool with no open window gets no bar and no big number, only a status word. Clicking a row
+// with model totals shows them as plain text.
+struct ToolRow: View {
     let dot: Color
     let name: String
     let plan: String?
-    let resets: String?
-    let big: String
-    let unit: String
-    let detail: Text?
-    let percent: Double?
-    let tint: Color
+    var big: String? = nil
+    var status: String? = nil
+    var percent: Double? = nil
+    var tint: Color = .primary
+    var left: Text? = nil
+    var right: String? = nil
     var chip: TrendChip? = nil
+    var models: [String: Status.ModelTokens]? = nil
     var help: String? = nil
-    @ViewBuilder var extra: Extra
+    @State var open = false
+
+    private var hasModels: Bool { !(models ?? [:]).isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(dot).frame(width: 9, height: 9)
-                Text(name).font(.system(size: 13, weight: .semibold)).fixedSize()
-                if let plan { Text(plan).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize() }
-                Spacer(minLength: 4)
-                if let resets { Text(resets).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1) }
-            }
-            HStack(alignment: .lastTextBaseline) {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(big).font(.system(size: 34, weight: .semibold)).monospacedDigit()
-                    Text(unit).font(.system(size: 15, weight: .medium)).foregroundStyle(.secondary)
-                }
-                .lineLimit(1).fixedSize()
-                Spacer(minLength: 8)
-                if let detail {
-                    detail.font(.system(size: 12)).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .help(help ?? "")
-            if let percent { Bar(fraction: percent / 100, tint: tint) }
-            extra
-            if let chip { chip.padding(.top, 2) }
+            Button { if hasModels { open.toggle() } } label: { summary }
+                .buttonStyle(.plain)
+                .help(help ?? "")
+            if open, let models { ModelLines(models: models) }
+            if let chip { chip }
         }
+    }
+
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(dot).frame(width: 9, height: 9)
+                Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(1).fixedSize()
+                if let plan { Text(plan).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1) }
+                if hasModels {
+                    Image(systemName: open ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 8)
+                if let big {
+                    Text(big).font(.system(size: 34, weight: .semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.8).fixedSize()
+                } else if let status {
+                    Text(status).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                }
+            }
+            if let percent { Bar(fraction: percent / 100, tint: tint) }
+            if left != nil || right != nil {
+                HStack(spacing: 8) {
+                    left?.lineLimit(1).minimumScaleFactor(0.85)
+                    Spacer(minLength: 8)
+                    if let right { Text(right).lineLimit(1).fixedSize() }
+                }
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+// Tokens per model as plain text, largest first: name, share of the total, tokens. Input, output and cache are in the
+// tooltip.
+struct ModelLines: View {
+    let models: [String: Status.ModelTokens]
+    var indent: CGFloat = 15
+
+    var body: some View {
+        let list = models.sorted { $0.value.total > $1.value.total }
+        let sum = max(1, list.reduce(0) { $0 + $1.value.total })
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(list, id: \.key) { name, m in
+                HStack(spacing: 8) {
+                    Text(name).lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    Text("\(Int((100 * m.total / sum).rounded()))%").foregroundStyle(.secondary).monospacedDigit()
+                    Text(Format.tokens(m.total)).fontWeight(.semibold).monospacedDigit()
+                        .frame(minWidth: 44, alignment: .trailing)
+                }
+                .font(.system(size: 12))
+                .help("Input \(Format.tokens(m.input)), output \(Format.tokens(m.output)), cache read \(Format.tokens(m.cache_read)), cache write \(Format.tokens(m.cache_write))")
+            }
+        }
+        .padding(.leading, indent)
     }
 }
 
@@ -79,37 +122,6 @@ struct TrendChip: View {
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .help(detail)
-    }
-}
-
-// Tokens per model in the open window, largest first. Input, output and cache are in the tooltip.
-struct ModelList: View {
-    let label: String
-    let models: [String: Status.ModelTokens]
-    let tint: Color
-
-    var body: some View {
-        let list = models.sorted { $0.value.total > $1.value.total }
-        let top = max(1, list.first?.value.total ?? 1)
-        VStack(alignment: .leading, spacing: 5) {
-            // One model needs no breakdown: the total above is already its number.
-            if list.count == 1, let name = list.first?.key {
-                Text("\(label): \(name) only").font(.system(size: 11)).foregroundStyle(.secondary)
-            } else {
-            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
-            ForEach(list, id: \.key) { name, m in
-                HStack(spacing: 8) {
-                    Text(name).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
-                        .frame(width: 128, alignment: .leading)
-                    Bar(fraction: m.total / top, tint: tint.opacity(0.7), height: 3)
-                    Text(Format.tokens(m.total)).font(.system(size: 12, weight: .semibold)).monospacedDigit()
-                        .frame(minWidth: 44, alignment: .trailing)
-                }
-                .help("Input \(Format.tokens(m.input)), output \(Format.tokens(m.output)), cache read \(Format.tokens(m.cache_read)), cache write \(Format.tokens(m.cache_write))")
-            }
-            }
-        }
-        .padding(.top, 4)
     }
 }
 

@@ -23,7 +23,7 @@ struct ShareView: View {
 
     var body: some View {
         Group {
-            if let result { done(result) } else { form }
+            if let result { done(result) } else if hits.isEmpty { nothing } else { form }
         }
         .frame(width: 460)
         .onAppear {
@@ -35,6 +35,29 @@ struct ShareView: View {
             result = sampleSent
             error = nil
         }
+    }
+
+    // Share is always in the panel, so it can open with nothing new to send.
+    private var nothing: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("No new limit hits to share").font(.system(size: 16, weight: .semibold))
+                    Text("Your limit hits from the last 30 days are already shared. The next one shows up here.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            HStack {
+                Button { Links.open(Links.site) } label: { Text("See all plans on hitmylimit.com") }
+                    .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Done") { dismiss() }.inkButton().keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
     }
 
     private var form: some View {

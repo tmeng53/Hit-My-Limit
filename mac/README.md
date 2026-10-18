@@ -11,7 +11,9 @@ login or credential files, never reads browser cookies, and never contacts Anthr
 - **Codex**: how full the 5-hour and weekly limits are, and when they reset, from the percentages Codex logs.
 - **Claude Code**: tokens used in the current 5-hour window and when it resets. Claude Code doesn't log a
   percentage, so the app compares the window with the tokens you had used when you hit the limit before.
-  Use of the Claude app counts toward the same limit and isn't in these logs.
+  Use of the Claude app counts toward the same limit and isn't in these logs. Between windows it shows Idle and
+  the last window's total.
+- **By model**: click a tool to see its tokens per model in the current window.
 - **Tokens before you hit the limit**: your hits this week next to your earlier ones. A drop with the same
   kind of work is what a quiet cut looks like.
 - **Limit hits**: one bar per day for the last 30 days.

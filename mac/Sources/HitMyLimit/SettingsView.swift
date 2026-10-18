@@ -10,7 +10,7 @@ struct SettingsView: View {
                 toggle("Anthropic: Claude Code", lab("anthropic"))
                 toggle("OpenAI: Codex", lab("openai"))
                 toggle("Google: Gemini", lab("google"))
-                note("Turned-off providers are hidden and send no notifications. Gemini: limit changes and free resets only, for now.")
+                note("Gemini: news only for now.")
             }
             section("Notifications") {
                 toggle("Limit changes", $model.notifyChanges)
@@ -27,7 +27,7 @@ struct SettingsView: View {
                 row("Where", "on this Mac only")
                 note("Nothing leaves this Mac unless you share a limit hit.")
             }
-            Divider().padding(.top, 16)
+            Hairline().padding(.top, 16)
             HStack {
                 Button("Limits by plan") { Links.open(Links.limits) }
                 Spacer()
